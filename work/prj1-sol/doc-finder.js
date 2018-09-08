@@ -7,6 +7,8 @@ class DocFinder {
   /** Constructor for instance of DocFinder. */
   constructor() {
     //@TODO
+	this.local_memory = {}
+	this.noise_words = {}
   }
 
   /** Return array of non-noise normalized words from string content.
@@ -24,7 +26,12 @@ class DocFinder {
    *  noise words. 
    */
   addNoiseWords(noiseWords) {
-    //@TODO    			      			    
+    //@TODO
+	var noisearray = noiseWords.split("\n")
+	for (const word of noisearray) 
+	{    			 
+		this.noise_words[word] = true
+	}
   }
 
   /** Add document named by string name with specified content to this
@@ -32,7 +39,37 @@ class DocFinder {
    *  words in content string.
    */ 
   addContent(name, content) {
-    //@TODO	   
+    //@TODO
+	// name = documentname
+	// content = content in file
+	
+	// split string based on all whitespaces
+	content = content.split(/\s+/g)
+	
+	for ( var word of content)
+        {
+		// convert word to lower case
+		word = word.toLowerCase()
+
+		word = word.replace(/\W/g, '')
+
+		// check if word empty or is a noise word
+		if ( word != "" && !(word in this.noise_words) )
+		{	
+			if ( word in this.local_memory )
+			{
+				this.local_memory[word][name] = this.local_memory[word][name] + 1
+			}
+			else
+			{
+				this.local_memory[word] = {}
+				this.local_memory[word][name] = 1
+			}
+		}
+        }
+
+	console.log(this.local_memory)
+
   }
 
   /** Given a list of normalized, non-noise words search terms, 
