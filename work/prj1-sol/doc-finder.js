@@ -7,6 +7,8 @@ class DocFinder {
   /** Constructor for instance of DocFinder. */
   constructor() {
     //@TODO
+
+	// Using Hashmap to reduce complexity
 	this.local_memory = {}
 	this.noise_words = {}
   }
@@ -85,8 +87,9 @@ class DocFinder {
 		}
 		else
 		{
-			// hashmap of hashmaps
+			// DS : hashmap of hashmaps
 			this.local_memory[word] = {}
+
 			this.local_memory[word][name] = 1
 		}
         }
@@ -110,7 +113,38 @@ class DocFinder {
   find(terms) {
 
     //@TODO
-    return [];
+
+	var result = []
+	
+	var all_terms = terms.split(" ")
+	
+	if ( all_terms.length == 0 )
+	{
+		// No search terms passed , just return empty
+		return [];
+	}	
+
+	if ( all_terms[0] in this.local_memory )
+	{
+		return [];
+	}
+
+	var inters_res = Set(all_terms[0])
+
+	for ( var i = 1; i < all_terms.length; i++ )
+	{
+		inters_res = inters_res & all_terms[i] 
+
+		if ( inters_res.size == 0 )
+		{
+			// No common elements found , return empty
+			return [];
+		}
+	}
+
+	result.push({name:"kartik", score : 10, lines : "kartik is here"}, {name:"kartik", score : 10, lines : "kartik is here"})
+
+	return result;	
   }
 
   /** Given a text string, return a ordered list of all completions of
