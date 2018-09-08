@@ -18,8 +18,32 @@ class DocFinder {
    *  matching regex [^a-z] have been removed.
    */
   words(content) {
+    
     //@TODO
-    return [];
+
+	var streamlined_words = []
+
+        // split string based on all whitespaces
+        content = content.split(/\s+/g)
+
+        for ( var word of content)
+        {
+                // convert word to lower case
+                word = word.toLowerCase()
+
+		// TODO: delete any 's suffix.
+		
+                // remove non alphanumeric characters
+                word = word.replace(/\W/g, '')
+
+                // check if word empty or is a noise word
+                if ( word != "" && !(word in this.noise_words) )
+                {
+			streamlined_words.push(word)
+		}
+	}
+
+	return streamlined_words;
   }
 
   /** Add all normalized words in noiseWords string to this as
@@ -43,33 +67,29 @@ class DocFinder {
 	// name = documentname
 	// content = content in file
 	
-	// split string based on all whitespaces
-	content = content.split(/\s+/g)
+
+	var normalized = this.words(content)
 	
-	for ( var word of content)
+	for ( var word of normalized)
         {
-		// convert word to lower case
-		word = word.toLowerCase()
-
-		word = word.replace(/\W/g, '')
-
-		// check if word empty or is a noise word
-		if ( word != "" && !(word in this.noise_words) )
-		{	
-			if ( word in this.local_memory )
+		if ( word in this.local_memory )
+		{
+			if ( name in this.local_memory[word] )
 			{
 				this.local_memory[word][name] = this.local_memory[word][name] + 1
 			}
 			else
 			{
-				this.local_memory[word] = {}
 				this.local_memory[word][name] = 1
 			}
 		}
+		else
+		{
+			// hashmap of hashmaps
+			this.local_memory[word] = {}
+			this.local_memory[word][name] = 1
+		}
         }
-
-	console.log(this.local_memory)
-
   }
 
   /** Given a list of normalized, non-noise words search terms, 
@@ -88,6 +108,7 @@ class DocFinder {
    *
    */
   find(terms) {
+
     //@TODO
     return [];
   }
