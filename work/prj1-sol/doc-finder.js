@@ -34,7 +34,10 @@ class DocFinder {
                 word = word.toLowerCase()
 
 		// TODO: delete any 's suffix.
-			
+		if ( word.endsWith("\'s") )
+		{
+			word = word.substring(0, word.length - 2); 
+		}
 	
                 // remove non alphanumeric characters
                 word = word.replace(/\W/g, '')
@@ -133,13 +136,13 @@ class DocFinder {
 	        {
 			for ( var filename in this.local_memory[searchword] )
 			{
-				if ( filename in this.local_memory[searchword] )
+				if ( filename in resultantmap )
 				{
-					resultantmap[filename] = this.local_memory[searchword][filename]
+					resultantmap[filename] = resultantmap[filename] + this.local_memory[searchword][filename]
 				}
 				else
 				{
-					resultantmap[filename] = resultantmap[filename] + this.local_memory[searchword][filename]
+					resultantmap[filename] = this.local_memory[searchword][filename]
 				}
 			}
         	}
@@ -148,7 +151,33 @@ class DocFinder {
 
 	console.log(resultantmap)
 
-	result.push({name:"kartik", score : 10, lines : "kartik is here"}, {name:"kartik", score : 10, lines : "kartik is here"})
+	// sort based on no of occurances
+	var sortedfiles = Object.keys(resultantmap).sort(function(a,b){return resultantmap[b]-resultantmap[a]})
+
+	console.log(sortedfiles)
+	for ( var i = 0 ; i < sortedfiles.length; i++ )
+	{
+		for ( var j = i; j < sortedfiles.length; j ++ )	
+		{
+			if ( resultantmap[sortedfiles[i]] == resultantmap[sortedfiles[j]] )
+			{
+				// The further along the alphabet, the higher the value. "b" > "a";
+				if ( sortedfiles[i] > sortedfiles[j] )
+				{
+					var temp = sortedfiles[i]
+					sortedfiles[i] = sortedfiles[j]
+					sortedfiles[j] = temp
+				}
+			}
+		}
+	}
+
+	console.log(sortedfiles)
+
+	for ( var filename of sortedfiles )
+	{
+		result.push( {name: filename, score : resultantmap[filename], lines : ""} )
+	}
 
 	return result;	
   }
