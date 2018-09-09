@@ -6,15 +6,17 @@ class DocFinder {
 
   /** Constructor for instance of DocFinder. */
   constructor() {
-    //@TODO
 
 	// Using Hashmap to reduce complexity
-	this.local_memory = {}
-	this.noise_words = {}
-	this.sentence_word_map = {}
+	this.local_memory = {}		// Stores all words , and document associated with it
+	this.noise_words = {}		// Stores all noise words
+	this.sentence_word_map = {}	// Store sentences of first occuring word in a document
   }
 
 
+  /**
+  *	Time Complexity : O(1)
+  */
   normalizeword( word ) {
 
 	// convert word to lower case
@@ -38,11 +40,12 @@ class DocFinder {
    *  been added to this object.  Normalized means that words are
    *  lower-cased, have been stemmed and all non-alphabetic characters
    *  matching regex [^a-z] have been removed.
+   	
+	Time Complexity : O(n)	// n = length of content
    */
+   
   words(content) {
     
-    //@TODO
-
 	var streamlined_words = []
 
         // split string based on all whitespaces
@@ -64,6 +67,8 @@ class DocFinder {
 
   /** Add all normalized words in noiseWords string to this as
    *  noise words. 
+
+	Time Complexity : O(n)	// n = length of noiseWords
    */
   addNoiseWords(noiseWords) {
     //@TODO
@@ -77,9 +82,10 @@ class DocFinder {
   /** Add document named by string name with specified content to this
    *  instance. Update index in this with all non-noise normalized
    *  words in content string.
+
+	Time complexity - O(m*n)	// n - length of content, m - max no of words in a sentence
    */ 
   addContent(name, content) {
-    //@TODO
 	// name = documentname
 	// content = content in file
 	
@@ -88,21 +94,28 @@ class DocFinder {
 
 	var sentences = content.split("\n")
 
+	// O( n*m ) 
 	for ( var line_number = 0; line_number < sentences.length; line_number++ )
 	{
+		// for loop O(n) -  length of content
+
 		var sentence = sentences[line_number]
 		sentence = sentence.split(/\s+/g)
 
+		// O(m) - length of sentence
 		for ( var word of sentence)
 	        {
-        	        word = this.normalizeword(word)
-
+			// O(1)
+		        word = this.normalizeword(word)
+			
+			// O(1)		- Hashmap
                 	// check if word empty or is a noise word
                 	if ( word != "" && !(word in this.noise_words) )
                 	{
                 	        normalized.push(word)
                 	}
 		
+			// O(1)	
 			if ( ! ( word in this.sentence_word_map ) )
 			{
 				this.sentence_word_map[word] = {}
@@ -119,9 +132,10 @@ class DocFinder {
         	}
 	}
 
-	
-	for ( var word of normalized)
+	// O(m * n) - ( m*n ) - size of normailized wors, Worst case , all sentence word were unique 		
+	for ( var word of normalized )
         {
+		// O(1)
 		if ( word in this.local_memory )
 		{
 			if ( name in this.local_memory[word] )
@@ -157,11 +171,10 @@ class DocFinder {
    *  Results which have the same score are sorted by the document name
    *  in lexicographical ascending order.
    *
+   *	Time complexity : O(n^2 * m^2)
+   *
    */
   find(terms) {
-
-    //@TODO
-
 
 	var result = []
 	var all_terms = terms
@@ -175,12 +188,19 @@ class DocFinder {
 		return [];
 	}	
 
+	// Total : O(n*m)
+
+	// O(n) - n : Number of terms
 	for ( var searchword of all_terms)
 	{
+		// O(1)
 		if ( searchword in this.local_memory )
 	        {
+			// Worst case, all files have the searchword
+			// O(m) - m : no of files
 			for ( var filename in this.local_memory[searchword] )
 			{
+				// O(1)
 				if ( filename in resultantmap )
 				{
 					resultantmap[filename] = resultantmap[filename] + this.local_memory[searchword][filename]
@@ -190,8 +210,8 @@ class DocFinder {
 					resultantmap[filename] = this.local_memory[searchword][filename]
 				}
 
+				// O(1)
 				// now record in sentencerecorder
-				
 				if ( ! (filename in sentencerecorder ) )
 				{
 					var linenumber = this.sentence_word_map[searchword][filename][1]
@@ -200,6 +220,7 @@ class DocFinder {
 				}
 				else
 				{
+					// O(1)
 					if ( this.sentence_word_map[searchword][filename][1] != sentencerecorder[filename][0] )
 					{
 						var linenumber = this.sentence_word_map[searchword][filename][1]
@@ -214,10 +235,15 @@ class DocFinder {
 	}
 
 	// sort based on no of occurances
+	// O( n*m log n*m )	- default time complexity of sort function in JS 
 	var sortedfiles = Object.keys(resultantmap).sort(function(a,b){return resultantmap[b]-resultantmap[a]})
 
+	// Total : O(n^2 * m^2)
+	
+	// O(n*m) : length of sortedfiles
 	for ( var i = 0 ; i < sortedfiles.length; i++ )
 	{
+		// O(n*m - 1) : length of sortedfiles
 		for ( var j = i; j < sortedfiles.length; j ++ )	
 		{
 			if ( resultantmap[sortedfiles[i]] == resultantmap[sortedfiles[j]] )
@@ -229,6 +255,10 @@ class DocFinder {
 					sortedfiles[i] = sortedfiles[j]
 					sortedfiles[j] = temp
 				}
+			}
+			else
+			{
+				break;
 			}
 		}
 	}
@@ -247,6 +277,7 @@ class DocFinder {
    *  not alphabetic.
    */
   complete(text) {
+   
     //@TODO
     return [];
   }
