@@ -71,7 +71,7 @@ class DocFinder {
 	Time Complexity : O(n)	// n = length of noiseWords
    */
   addNoiseWords(noiseWords) {
-
+    //@TODO
 	var noisearray = noiseWords.split("\n")
 	for (const word of noisearray) 
 	{    			 
@@ -282,18 +282,11 @@ class DocFinder {
     	{
 		return [];
 	}
-
-	var result = []
-
-	for ( var eachword in this.local_memory )
-	{
-		if ( eachword.startsWith(text) )
-		{
-			result.push(eachword)
-		}
-	}
 	
-    	return result;
+	var result = []; 
+ 
+    //@TODO
+    return [];
   }
 
   
