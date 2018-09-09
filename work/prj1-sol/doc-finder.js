@@ -11,6 +11,26 @@ class DocFinder {
 	// Using Hashmap to reduce complexity
 	this.local_memory = {}
 	this.noise_words = {}
+	this.sentence_word_map = {}
+  }
+
+
+  normalizeword( word ) {
+
+	// convert word to lower case
+    	word = word.toLowerCase()
+
+     	// delete any 's suffix.
+      	if ( word.endsWith("\'s") )
+       	{
+    		word = word.substring(0, word.length - 2);
+    	}
+
+    	// remove non alphanumeric characters
+   	word = word.replace(/\W/g, '')
+
+	return word;
+
   }
 
   /** Return array of non-noise normalized words from string content.
@@ -30,17 +50,7 @@ class DocFinder {
 
         for ( var word of content)
         {
-                // convert word to lower case
-                word = word.toLowerCase()
-
-		// TODO: delete any 's suffix.
-		if ( word.endsWith("\'s") )
-		{
-			word = word.substring(0, word.length - 2); 
-		}
-	
-                // remove non alphanumeric characters
-                word = word.replace(/\W/g, '')
+                word = this.normalizeword(word)
 
                 // check if word empty or is a noise word
                 if ( word != "" && !(word in this.noise_words) )
@@ -74,7 +84,41 @@ class DocFinder {
 	// content = content in file
 	
 
-	var normalized = this.words(content)
+	var normalized = []
+
+	var sentences = content.split("\n")
+
+	for ( var line_number = 0; line_number < sentences.length; line_number++ )
+	{
+		var sentence = sentences[line_number]
+		sentence = sentence.split(/\s+/g)
+
+		for ( var word of sentence)
+	        {
+        	        word = this.normalizeword(word)
+
+                	// check if word empty or is a noise word
+                	if ( word != "" && !(word in this.noise_words) )
+                	{
+                	        normalized.push(word)
+                	}
+		
+			if ( ! ( word in this.sentence_word_map ) )
+			{
+				this.sentence_word_map[word] = {}
+				this.sentence_word_map[word][name] = [ sentences[line_number] , line_number ]
+			}
+			else
+			{
+				if ( ! ( name in this.sentence_word_map[word] ) )
+				{
+					this.sentence_word_map[word][name] = [ sentences[line_number] , line_number ]
+				}
+			}
+			
+        	}
+	}
+
 	
 	for ( var word of normalized)
         {
@@ -122,7 +166,8 @@ class DocFinder {
 	var result = []
 	var all_terms = terms
 	var resultantmap = {} ;
-	
+	var sentencerecorder = {}	
+
 	
 	if ( all_terms.length == 0 )
 	{
@@ -144,8 +189,25 @@ class DocFinder {
 				{
 					resultantmap[filename] = this.local_memory[searchword][filename]
 				}
+
+				// now record in sentencerecorder
+				
+				if ( ! (filename in sentencerecorder ) )
+				{
+					var linenumber = this.sentence_word_map[searchword][filename][1]
+					sentencerecorder[filename] = [ searchword, linenumber ]
+				}
+				else
+				{
+					if ( this.sentence_word_map[searchword][filename][1] < sentencerecorder[filename][1] )
+					{
+						var linenumber = this.sentence_word_map[searchword][filename][1]
+						sentencerecorder[filename] = [ searchword, linenumber ]
+					} 
+				}
 			}
         	}
+		
 
 	}
 
@@ -176,7 +238,7 @@ class DocFinder {
 
 	for ( var filename of sortedfiles )
 	{
-		result.push( {name: filename, score : resultantmap[filename], lines : ""} )
+		result.push( {name: filename, score : resultantmap[filename], lines : this.sentence_word_map[sentencerecorder[filename][0]][filename][0] + "\n" } )
 	}
 
 	return result;	
