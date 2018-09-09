@@ -195,14 +195,16 @@ class DocFinder {
 				if ( ! (filename in sentencerecorder ) )
 				{
 					var linenumber = this.sentence_word_map[searchword][filename][1]
-					sentencerecorder[filename] = [ searchword, linenumber ]
+					var sentence = this.sentence_word_map[searchword][filename][0]
+					sentencerecorder[filename] = [ linenumber , sentence]
 				}
 				else
 				{
-					if ( this.sentence_word_map[searchword][filename][1] < sentencerecorder[filename][1] )
+					if ( this.sentence_word_map[searchword][filename][1] != sentencerecorder[filename][0] )
 					{
 						var linenumber = this.sentence_word_map[searchword][filename][1]
-						sentencerecorder[filename] = [ searchword, linenumber ]
+						var sentence = this.sentence_word_map[searchword][filename][0]
+						sentencerecorder[filename] = [ linenumber , sentence + "\n" + sentencerecorder[filename][1] ]
 					} 
 				}
 			}
@@ -211,12 +213,9 @@ class DocFinder {
 
 	}
 
-	console.log(resultantmap)
-
 	// sort based on no of occurances
 	var sortedfiles = Object.keys(resultantmap).sort(function(a,b){return resultantmap[b]-resultantmap[a]})
 
-	console.log(sortedfiles)
 	for ( var i = 0 ; i < sortedfiles.length; i++ )
 	{
 		for ( var j = i; j < sortedfiles.length; j ++ )	
@@ -234,11 +233,10 @@ class DocFinder {
 		}
 	}
 
-	console.log(sortedfiles)
 
 	for ( var filename of sortedfiles )
 	{
-		result.push( {name: filename, score : resultantmap[filename], lines : this.sentence_word_map[sentencerecorder[filename][0]][filename][0] + "\n" } )
+		result.push( {name: filename, score : resultantmap[filename], lines : sentencerecorder[filename][1] + "\n" } )
 	}
 
 	return result;	
@@ -250,7 +248,6 @@ class DocFinder {
    */
   complete(text) {
     //@TODO
-	console.log(text)
     return [];
   }
 
