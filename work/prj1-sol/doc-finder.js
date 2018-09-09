@@ -115,7 +115,8 @@ class DocFinder {
                 	        normalized.push(word)
                 	}
 		
-			// O(1)	
+			// O(1)
+			// Add the sentence along with document name and line number for first occuring word in document	
 			if ( ! ( word in this.sentence_word_map ) )
 			{
 				this.sentence_word_map[word] = {}
@@ -132,7 +133,8 @@ class DocFinder {
         	}
 	}
 
-	// O(m * n) - ( m*n ) - size of normailized wors, Worst case , all sentence word were unique 		
+	// O(m * n) - ( m*n ) - size of normailized wors, Worst case , all sentence word were unique 
+	// Push all normalized words to localmemory , and keep track of count
 	for ( var word of normalized )
         {
 		// O(1)
@@ -225,7 +227,15 @@ class DocFinder {
 					{
 						var linenumber = this.sentence_word_map[searchword][filename][1]
 						var sentence = this.sentence_word_map[searchword][filename][0]
-						sentencerecorder[filename] = [ linenumber , sentence + "\n" + sentencerecorder[filename][1] ]
+
+						if ( linenumber < sentencerecorder[filename][0] )
+						{
+							sentencerecorder[filename] = [ linenumber , sentence + "\n" + sentencerecorder[filename][1] ]
+						}
+						else
+						{
+                                                        sentencerecorder[filename] = [ linenumber , sentencerecorder[filename][1] + "\n" + sentence ]
+                                                }
 					} 
 				}
 			}
@@ -275,6 +285,8 @@ class DocFinder {
   /** Given a text string, return a ordered list of all completions of
    *  the last word in text.  Returns [] if the last char in text is
    *  not alphabetic.
+   *
+   *	Time complexity : n - Total no of words stored in local_memory
    */
   complete(text) {
    
