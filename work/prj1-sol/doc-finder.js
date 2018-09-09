@@ -34,7 +34,8 @@ class DocFinder {
                 word = word.toLowerCase()
 
 		// TODO: delete any 's suffix.
-		
+			
+	
                 // remove non alphanumeric characters
                 word = word.replace(/\W/g, '')
 
@@ -114,9 +115,11 @@ class DocFinder {
 
     //@TODO
 
+
 	var result = []
+	var all_terms = terms
+	var resultantmap = {} ;
 	
-	var all_terms = terms.split(" ")
 	
 	if ( all_terms.length == 0 )
 	{
@@ -124,23 +127,26 @@ class DocFinder {
 		return [];
 	}	
 
-	if ( all_terms[0] in this.local_memory )
+	for ( var searchword of all_terms)
 	{
-		return [];
+		if ( searchword in this.local_memory )
+	        {
+			for ( var filename in this.local_memory[searchword] )
+			{
+				if ( filename in this.local_memory[searchword] )
+				{
+					resultantmap[filename] = this.local_memory[searchword][filename]
+				}
+				else
+				{
+					resultantmap[filename] = resultantmap[filename] + this.local_memory[searchword][filename]
+				}
+			}
+        	}
+
 	}
 
-	var inters_res = Set(all_terms[0])
-
-	for ( var i = 1; i < all_terms.length; i++ )
-	{
-		inters_res = inters_res & all_terms[i] 
-
-		if ( inters_res.size == 0 )
-		{
-			// No common elements found , return empty
-			return [];
-		}
-	}
+	console.log(resultantmap)
 
 	result.push({name:"kartik", score : 10, lines : "kartik is here"}, {name:"kartik", score : 10, lines : "kartik is here"})
 
@@ -153,6 +159,7 @@ class DocFinder {
    */
   complete(text) {
     //@TODO
+	console.log(text)
     return [];
   }
 
