@@ -173,7 +173,7 @@ class DocFinder {
    *  Results which have the same score are sorted by the document name
    *  in lexicographical ascending order.
    *
-   *	Time complexity : O(n^2 * m^2)
+   *	Time complexity : O(n^2 * m^2)	// n - number of search terms, m - number of files which have the search terms
    *
    */
   find(terms) {
