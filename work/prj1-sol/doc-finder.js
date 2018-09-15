@@ -129,7 +129,6 @@ class DocFinder {
 					this.sentence_word_map[word][name] = [ sentences[line_number] , line_number ]
 				}
 			}
-			
         	}
 	}
 
