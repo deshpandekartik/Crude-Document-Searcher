@@ -8,9 +8,9 @@ class DocFinder {
   constructor() {
 
 	// Using Hashmap to reduce complexity
-	this.local_memory = {}		// Stores all words , and document associated with it
-	this.noise_words = {}		// Stores all noise words
-	this.sentence_word_map = {}	// Store sentences of first occuring word in a document
+	this.local_memory = new Map()		// Stores all words , and document associated with it
+	this.noise_words = new Map()		// Stores all noise words, Could have used a set here but Map provides better efficency
+	this.sentence_word_map = new Map()	// Store sentences of first occuring word in a document
   }
 
 
@@ -56,7 +56,7 @@ class DocFinder {
                 word = this.normalizeword(word)
 
                 // check if word empty or is a noise word
-                if ( word != "" && !(word in this.noise_words) )
+                if ( word != "" && !(this.noise_words.has(word)) )
                 {
 			streamlined_words.push(word)
 		}
@@ -74,8 +74,8 @@ class DocFinder {
 
 	var noisearray = noiseWords.split("\n")
 	for (const word of noisearray) 
-	{    			 
-		this.noise_words[word] = true
+	{    			
+        	this.noise_words.set(word,true)
 	}
   }
 
@@ -110,23 +110,23 @@ class DocFinder {
 			
 			// O(1)		- Hashmap
                 	// check if word empty or is a noise word
-                	if ( word != "" && !(word in this.noise_words) )
+                	if ( word != "" && !(this.noise_words.has(word)) )
                 	{
                 	        normalized.push(word)
                 	}
 		
 			// O(1)
 			// Add the sentence along with document name and line number for first occuring word in document	
-			if ( ! ( word in this.sentence_word_map ) )
+			if ( this.sentence_word_map.has(word) == false )
 			{
-				this.sentence_word_map[word] = {}
-				this.sentence_word_map[word][name] = [ sentences[line_number] , line_number ]
+				this.sentence_word_map.set(word,new Map())
+  		                this.sentence_word_map.get(word).set(name,[ sentences[line_number] , line_number])
 			}
 			else
 			{
-				if ( ! ( name in this.sentence_word_map[word] ) )
+				if ( this.sentence_word_map.get(word).has(name) == false )
 				{
-					this.sentence_word_map[word][name] = [ sentences[line_number] , line_number ]
+                    			this.sentence_word_map.get(word).set(name,[ sentences[line_number] , line_number ])
 				}
 			}
         	}
@@ -137,23 +137,22 @@ class DocFinder {
 	for ( var word of normalized )
         {
 		// O(1)
-		if ( word in this.local_memory )
+		if ( this.local_memory.has(word) )
 		{
-			if ( name in this.local_memory[word] )
+			if ( this.local_memory.get(word).has(name) )
 			{
-				this.local_memory[word][name] = this.local_memory[word][name] + 1
+                		this.local_memory.get(word).set(name, this.local_memory.get(word).get(name) + 1)
 			}
 			else
 			{
-				this.local_memory[word][name] = 1
+                		this.local_memory.get(word).set(name,1)
 			}
 		}
 		else
 		{
 			// DS : hashmap of hashmaps
-			this.local_memory[word] = {}
-
-			this.local_memory[word][name] = 1
+			this.local_memory.set(word, new Map())
+            		this.local_memory.get(word).set(name, 1)
 		}
         }
   }
@@ -179,8 +178,8 @@ class DocFinder {
 
 	var result = []
 	var all_terms = terms
-	var resultantmap = {} ;
-	var sentencerecorder = {}	
+	var resultantmap = new Map() 
+	var sentencerecorder = new Map()	
 
 	
 	if ( all_terms.length == 0 )
@@ -195,46 +194,46 @@ class DocFinder {
 	for ( var searchword of all_terms)
 	{
 		// O(1)
-		if ( searchword in this.local_memory )
+		if ( this.local_memory.has(searchword) )
 	        {
 			// Worst case, all files have the searchword
 			// O(m) - m : no of files
-			for ( var filename in this.local_memory[searchword] )
+			for ( var filename of this.local_memory.get(searchword).keys() )
 			{
 				// O(1)
-				if ( filename in resultantmap )
+				if ( resultantmap.has(filename) )
 				{
-					resultantmap[filename] = resultantmap[filename] + this.local_memory[searchword][filename]
+                    			resultantmap.set(filename, resultantmap.get(filename) + this.local_memory.get(searchword).get(filename) )
 				}
 				else
 				{
-					resultantmap[filename] = this.local_memory[searchword][filename]
+                    			resultantmap.set(filename,this.local_memory.get(searchword).get(filename) )
 				}
 
 				// O(1)
 				// now record in sentencerecorder
-				if ( ! (filename in sentencerecorder ) )
+				if ( ! (sentencerecorder.has(filename) ) )
 				{
-					var linenumber = this.sentence_word_map[searchword][filename][1]
-					var sentence = this.sentence_word_map[searchword][filename][0]
-					sentencerecorder[filename] = [ linenumber , sentence]
+					var linenumber = this.sentence_word_map.get(searchword).get(filename)[1]
+					var sentence = this.sentence_word_map.get(searchword).get(filename)[0]
+		                        sentencerecorder.set(filename,[linenumber , sentence])
 				}
 				else
 				{
 					// O(1)
-					if ( this.sentence_word_map[searchword][filename][1] != sentencerecorder[filename][0] )
+					if ( this.sentence_word_map.get(searchword).get(filename)[1] != sentencerecorder.get(filename)[0] )
 					{
-						var linenumber = this.sentence_word_map[searchword][filename][1]
-						var sentence = this.sentence_word_map[searchword][filename][0]
+						var linenumber = this.sentence_word_map.get(searchword).get(filename)[1]
+						var sentence = this.sentence_word_map.get(searchword).get(filename)[0]
 
-						if ( linenumber < sentencerecorder[filename][0] )
+						if ( linenumber < sentencerecorder.get(filename)[0] )
 						{
-							sentencerecorder[filename] = [ linenumber , sentence + "\n" + sentencerecorder[filename][1] ]
+                            				sentencerecorder.set(filename, [ linenumber , sentence + "\n" + sentencerecorder.get(filename)[1] ])
 						}
 						else
 						{
-                                                        sentencerecorder[filename] = [ linenumber , sentencerecorder[filename][1] + "\n" + sentence ]
-                                                }
+                            				sentencerecorder.set(filename, [ linenumber , sentencerecorder.get(filename)[1] + "\n" + sentence ])
+                        			}
 					} 
 				}
 			}
@@ -245,17 +244,17 @@ class DocFinder {
 
 	// sort based on no of occurances
 	// O( n*m log n*m )	- default time complexity of sort function in JS 
-	var sortedfiles = Object.keys(resultantmap).sort(function(a,b){return resultantmap[b]-resultantmap[a]})
+	var sortedfiles = Array.from(new Map ( Array.from(resultantmap).sort((a, b) => { return b[1] - a[1] }) ).keys())
+
 
 	// Total : O(n^2 * m^2)
-	
 	// O(n*m) : length of sortedfiles
 	for ( var i = 0 ; i < sortedfiles.length; i++ )
 	{
 		// O(n*m - 1) : length of sortedfiles
 		for ( var j = i; j < sortedfiles.length; j ++ )	
 		{
-			if ( resultantmap[sortedfiles[i]] == resultantmap[sortedfiles[j]] )
+			if ( resultantmap.get(sortedfiles[i]) == resultantmap.get(sortedfiles[j]) )
 			{
 				// The further along the alphabet, the higher the value. "b" > "a";
 				if ( sortedfiles[i] > sortedfiles[j] )
@@ -275,7 +274,7 @@ class DocFinder {
 
 	for ( var filename of sortedfiles )
 	{
-		result.push( {name: filename, score : resultantmap[filename], lines : sentencerecorder[filename][1] + "\n" } )
+		result.push( {name: filename, score : resultantmap.get(filename), lines : sentencerecorder.get(filename)[1] + "\n" } )
 	}
 
 	return result;	
@@ -296,7 +295,7 @@ class DocFinder {
 
 	var result = []
 
-	for ( var eachword in this.local_memory )
+	for ( var eachword of this.local_memory.keys() )
 	{
 		if ( eachword.startsWith(text) )
 		{
@@ -348,4 +347,5 @@ function normalize(word) {
 function stem(word) {
   return word.replace(/\'s$/, '');
 }
+
 
