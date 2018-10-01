@@ -20,10 +20,9 @@ class DocFinder {
    	*/
   	constructor(dbUrl) {
 		this.dbURL = dbUrl
-		this.dbName = dbUrl.split("/").pop();
-		this.mongoURL = dbUrl.split("/").splice(0,dbUrl.split("/").length - 1).join("/")
 		this.client = null
         	this.db = null
+		this.content = []
   	}
 
   	/** This routine is used for all asynchronous initialization
@@ -42,6 +41,11 @@ class DocFinder {
    	*  close any database connections.
   	*/
   	async close() {
+
+		//this.createCollection("content")
+                //var myobj = { _id : name , content : "asdasd" };
+                //this.insertDocument(myobj,"content", false)
+
 		this.client.close();
   	}
 
@@ -55,17 +59,43 @@ class DocFinder {
    	*  which have been added to this object.  Normalized means that
    	*  words are lower-cased, have been stemmed and all non-alphabetic
    	*  characters matching regex [^a-z] have been removed.
+	*	Time Complexity : O(n)  // n = length of content
    	*/
-  	async words(contentText) {
-    		//TODO
-    		return [];
+  	async words(contentText) 
+	{
+		var streamlined_words = []
+
+	        // split string based on all whitespaces
+	        content = contentText.split(/\s+/g)
+		
+		// O(n)	
+	        for ( var word of content)
+	        {
+	                word = this.normalizeword(word)
+
+	                // check if word empty or is a noise word
+	                if ( word != "" && !(this.noise_words.has(word)) )
+	                {
+	                        streamlined_words.push(word)
+	                }
+	        }
+
+		return streamlined_words;
+
   	}
 
   	/** Add all normalized words in the noiseText string to this as
    	*  noise words.  This operation should be idempotent.
+	*	Time Complexity : O(n)  // n = length of noiseWords
 	*/
-  	async addNoiseWords(noiseText) {
-    	//TODO
+  	async addNoiseWords(noiseText) 
+	{
+		var noisearray = noiseWords.split("\n")
+	        for (const word of noisearray)
+        	{
+                	this.noise_words.set(word,true)
+        	}
+
   	}
 
   	/** Add document named by string name with specified content string
@@ -74,9 +104,14 @@ class DocFinder {
    	*  This operation should be idempotent.
    	*/ 
   	async addContent(name, contentText) {
+		
+		// append document name, and the contentText to content, 
+		// later this will be inserted in DB
+		this.content.push({ _id : name , content : contentText })
+
 		this.createCollection("content")
-		var myobj = [ { _id: name, content: 'Chocolate Heaven'} ]
-		this.insertDocument(myobj,"content")	
+		var myobj = { _id : name , content : "asdasd" };
+		this.insertDocument(myobj,"content", false)	
 	
 	  }
 
@@ -123,29 +158,66 @@ class DocFinder {
 
   	//Add private methods as necessary
 
+	// APPLICATION SPECIFIC FUNCTIONS	
+	
+	/**
+ 	*     Time Complexity : O(1)
+ 	*/
+  	async normalizeword( word ) 
+	{
+
+        	// convert word to lower case
+        	word = word.toLowerCase()
+
+        	// delete any 's suffix.
+        	if ( word.endsWith("\'s") )
+        	{
+        	        word = word.substring(0, word.length - 2);
+        	}
+
+        	// remove non alphanumeric characters
+        	word = word.replace(/\W/g, '')
+        	return word;
+  	}
+
+
+
+	// MONGO DB Functions 
+
 	/**
 	*create a collection, if not exists in database
 	*/
 	createCollection(name)
 	{
-	        	this.db.createCollection( name, function(err, res)
-	        	{
-	        	        if (err) throw err;
-	        	});
+	        this.db.createCollection( name, function(err, res)
+	        {
+	                if (err) throw err;
+	        });
 	}
 
 	/**
 	* Inserts a record into collection
 	*/
-	insertDocument(record, collectionName)
+	insertDocument(record, collectionName, insertMultiple)
 	{
-                this.db.collection(collectionName).insertOne(record, function(err, res)
-                {
-                        if (err) throw err;
-                        console.log("1 document inserted");
-                });
-	}
 
+		if ( insertMultiple == true )
+		{
+			this.db.collection(collectionName).insertMany(record, function(err, res)
+                        {
+                                if (err) throw err;
+                                console.log("1 document inserted");
+                        });
+		}
+		else
+		{
+                	this.db.collection(collectionName).insertOne(record, function(err, res)
+                	{
+                	        if (err) throw err;
+                	        console.log("1 document inserted");
+                	});
+		}
+	}
 } //class DocFinder
 
 module.exports = DocFinder;

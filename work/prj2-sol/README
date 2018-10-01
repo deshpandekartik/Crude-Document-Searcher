@@ -4,3 +4,8 @@ Email:		XXX
 
 Add text here as needed.
 
+
+db.content.find().pretty()
+
+db.content.remove({})
+
