@@ -11,106 +11,140 @@ const {inspect} = require('util'); //for debugging
  */ 
 class DocFinder {
 
-  /** Constructor for instance of DocFinder. The dbUrl is
-   *  expected to be of the form mongodb://SERVER:PORT/DB
-   *  where SERVER/PORT specifies the server and port on
-   *  which the mongo database server is running and DB is
-   *  name of the database within that database server which
-   *  hosts the persistent content provided by this class.
-   */
-  constructor(dbUrl) {
-    //TODO
-  }
+  	/** Constructor for instance of DocFinder. The dbUrl is
+   	*  expected to be of the form mongodb://SERVER:PORT/DB
+   	*  where SERVER/PORT specifies the server and port on
+   	*  which the mongo database server is running and DB is
+   	*  name of the database within that database server which
+   	*  hosts the persistent content provided by this class.
+   	*/
+  	constructor(dbUrl) {
+		this.dbURL = dbUrl
+		this.dbName = dbUrl.split("/").pop();
+		this.mongoURL = dbUrl.split("/").splice(0,dbUrl.split("/").length - 1).join("/")
+		this.client = null
+        	this.db = null
+  	}
 
-  /** This routine is used for all asynchronous initialization
-   *  for instance of DocFinder.  It must be called by a client
-   *  immediately after creating a new instance of this.
-   */
-  async init() {
-    //TODO
-  }
+  	/** This routine is used for all asynchronous initialization
+   	*  for instance of DocFinder.  It must be called by a client
+   	*  immediately after creating a new instance of this.
+   	*/
+  	async init() {
 
-  /** Release all resources held by this doc-finder.  Specifically,
-   *  close any database connections.
-   */
-  async close() {
-    //TODO
-  }
+		// open a connection to MongoDB 
+		// keep the connection open, close it at the end as every connection request impacts performance
+		this.client = await mongo.connect(this.dbURL);
+    		this.db = this.client.db(this.dbName); 
+  	}
 
-  /** Clear database */
-  async clear() {
-    //TODO
-  }
+  	/** Release all resources held by this doc-finder.  Specifically,
+   	*  close any database connections.
+  	*/
+  	async close() {
+		this.client.close();
+  	}
 
-  /** Return an array of non-noise normalized words from string
-   *  contentText.  Non-noise means it is not a word in the noiseWords
-   *  which have been added to this object.  Normalized means that
-   *  words are lower-cased, have been stemmed and all non-alphabetic
-   *  characters matching regex [^a-z] have been removed.
-   */
-  async words(contentText) {
-    //TODO
-    return [];
-  }
+  	/** Clear database */
+  	async clear() {
+    		//TODO
+  	}
 
-  /** Add all normalized words in the noiseText string to this as
-   *  noise words.  This operation should be idempotent.
-   */
-  async addNoiseWords(noiseText) {
-    //TODO
-  }
+  	/** Return an array of non-noise normalized words from string
+   	*  contentText.  Non-noise means it is not a word in the noiseWords
+   	*  which have been added to this object.  Normalized means that
+   	*  words are lower-cased, have been stemmed and all non-alphabetic
+   	*  characters matching regex [^a-z] have been removed.
+   	*/
+  	async words(contentText) {
+    		//TODO
+    		return [];
+  	}
 
-  /** Add document named by string name with specified content string
-   *  contentText to this instance. Update index in this with all
-   *  non-noise normalized words in contentText string.
-   *  This operation should be idempotent.
-   */ 
-  async addContent(name, contentText) {
-    //TODO
-  }
+  	/** Add all normalized words in the noiseText string to this as
+   	*  noise words.  This operation should be idempotent.
+	*/
+  	async addNoiseWords(noiseText) {
+    	//TODO
+  	}
 
-  /** Return contents of document name.  If not found, throw an Error
-   *  object with property code set to 'NOT_FOUND' and property
-   *  message set to `doc ${name} not found`.
-   */
-  async docContent(name) {
-    //TODO
-    return '';
-  }
+  	/** Add document named by string name with specified content string
+   	*  contentText to this instance. Update index in this with all
+   	*  non-noise normalized words in contentText string.
+   	*  This operation should be idempotent.
+   	*/ 
+  	async addContent(name, contentText) {
+		this.createCollection("content")
+		var myobj = [ { _id: name, content: 'Chocolate Heaven'} ]
+		this.insertDocument(myobj,"content")	
+	
+	  }
+
+  	/** Return contents of document name.  If not found, throw an Error
+  	*  object with property code set to 'NOT_FOUND' and property
+   	*  message set to `doc ${name} not found`.
+   	*/
+  	async docContent(name) {
+    		//TODO
+    		return '';
+  	}
   
-  /** Given a list of normalized, non-noise words search terms, 
-   *  return a list of Result's  which specify the matching documents.  
-   *  Each Result object contains the following properties:
-   *
-   *     name:  the name of the document.
-   *     score: the total number of occurrences of the search terms in the
-   *            document.
-   *     lines: A string consisting the lines containing the earliest
-   *            occurrence of the search terms within the document.  The 
-   *            lines must have the same relative order as in the source
-   *            document.  Note that if a line contains multiple search 
-   *            terms, then it will occur only once in lines.
-   *
-   *  The returned Result list must be sorted in non-ascending order
-   *  by score.  Results which have the same score are sorted by the
-   *  document name in lexicographical ascending order.
-   *
-   */
-  async find(terms) {
-    //TODO
-    return [];
-  }
+  	/** Given a list of normalized, non-noise words search terms, 
+   	*  return a list of Result's  which specify the matching documents.  
+   	*  Each Result object contains the following properties:
+   	*
+   	*     name:  the name of the document.
+   	*     score: the total number of occurrences of the search terms in the
+   	*            document.
+   	*     lines: A string consisting the lines containing the earliest
+   	*            occurrence of the search terms within the document.  The 
+   	*            lines must have the same relative order as in the source
+   	*            document.  Note that if a line contains multiple search 
+   	*            terms, then it will occur only once in lines.
+   	*
+   	*  The returned Result list must be sorted in non-ascending order
+   	*  by score.  Results which have the same score are sorted by the
+   	*  document name in lexicographical ascending order.
+   	*
+   	*/
+  	async find(terms) {
+    		//TODO
+    		return [];
+  	}
 
-  /** Given a text string, return a ordered list of all completions of
-   *  the last normalized word in text.  Returns [] if the last char
-   *  in text is not alphabetic.
-   */
-  async complete(text) {
-    //TODO
-    return [];
-  }
+  	/** Given a text string, return a ordered list of all completions of
+  	*  the last normalized word in text.  Returns [] if the last char
+   	*  in text is not alphabetic.
+   	*/
+  	async complete(text) {
+    		//TODO
+    		return [];
+  	}
 
-  //Add private methods as necessary
+  	//Add private methods as necessary
+
+	/**
+	*create a collection, if not exists in database
+	*/
+	createCollection(name)
+	{
+	        	this.db.createCollection( name, function(err, res)
+	        	{
+	        	        if (err) throw err;
+	        	});
+	}
+
+	/**
+	* Inserts a record into collection
+	*/
+	insertDocument(record, collectionName)
+	{
+                this.db.collection(collectionName).insertOne(record, function(err, res)
+                {
+                        if (err) throw err;
+                        console.log("1 document inserted");
+                });
+	}
 
 } //class DocFinder
 
