@@ -18,18 +18,29 @@ class DocFinder {
    	*  name of the database within that database server which
    	*  hosts the persistent content provided by this class.
    	*/
-  	constructor(dbUrl) {
+  	constructor(dbUrl) 
+	{
 		this.dbURL = dbUrl
 		this.client = null
         	this.db = null
 		this.content = []
+		this.noise_words = new Map()
+
+		/*
+		DATABASE NAMES
+		1. content
+		2. noisewords
+		*/	
+		this.contentTB = "content"
+		this.noisewordsTB = "noisewords"	
   	}
 
   	/** This routine is used for all asynchronous initialization
    	*  for instance of DocFinder.  It must be called by a client
    	*  immediately after creating a new instance of this.
    	*/
-  	async init() {
+  	async init() 
+	{
 
 		// open a connection to MongoDB 
 		// keep the connection open, close it at the end as every connection request impacts performance
@@ -40,7 +51,8 @@ class DocFinder {
   	/** Release all resources held by this doc-finder.  Specifically,
    	*  close any database connections.
   	*/
-  	async close() {
+  	async close() 
+	{
 
 		//this.createCollection("content")
                 //var myobj = { _id : name , content : "asdasd" };
@@ -50,7 +62,8 @@ class DocFinder {
   	}
 
   	/** Clear database */
-  	async clear() {
+  	async clear() 
+	{
     		//TODO
   	}
 
@@ -81,7 +94,6 @@ class DocFinder {
 	        }
 
 		return streamlined_words;
-
   	}
 
   	/** Add all normalized words in the noiseText string to this as
@@ -90,11 +102,32 @@ class DocFinder {
 	*/
   	async addNoiseWords(noiseText) 
 	{
-		var noisearray = noiseWords.split("\n")
+		noiseText = "this"
+		var noise_words_mongo = []
+		var noisearray = noiseText.split("\n")
 	        for (const word of noisearray)
         	{
-                	this.noise_words.set(word,true)
+			// to make sure that we do not insert duplicates
+			if ( word != "" && !(this.noise_words.has(word)) )
+			{
+				this.noise_words.set(word,true)
+                		noise_words_mongo.push( { _id : word , content : true } )	
+			}
         	}
+
+		// create collection
+		this.createCollection(this.noisewordsTB)
+
+		if ( noise_words_mongo == 1 )
+		{
+			// insert one
+			this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
+		}
+		else
+		{
+			// insert many
+			this.insertDocument(noise_words_mongo, this.noisewordsTB , true)
+		}
 
   	}
 
@@ -103,23 +136,21 @@ class DocFinder {
    	*  non-noise normalized words in contentText string.
    	*  This operation should be idempotent.
    	*/ 
-  	async addContent(name, contentText) {
+  	async addContent(name, contentText) 
+	{
 		
 		// append document name, and the contentText to content, 
 		// later this will be inserted in DB
 		this.content.push({ _id : name , content : contentText })
-
-		this.createCollection("content")
-		var myobj = { _id : name , content : "asdasd" };
-		this.insertDocument(myobj,"content", false)	
 	
-	  }
+	}
 
   	/** Return contents of document name.  If not found, throw an Error
   	*  object with property code set to 'NOT_FOUND' and property
    	*  message set to `doc ${name} not found`.
    	*/
-  	async docContent(name) {
+  	async docContent(name) 
+	{
     		//TODO
     		return '';
   	}
@@ -142,7 +173,8 @@ class DocFinder {
    	*  document name in lexicographical ascending order.
    	*
    	*/
-  	async find(terms) {
+  	async find(terms) 
+	{
     		//TODO
     		return [];
   	}
@@ -151,7 +183,8 @@ class DocFinder {
   	*  the last normalized word in text.  Returns [] if the last char
    	*  in text is not alphabetic.
    	*/
-  	async complete(text) {
+  	async complete(text) 
+	{
     		//TODO
     		return [];
   	}
