@@ -38,7 +38,8 @@ class DocFinder {
 		2. noisewords
 		*/	
 		this.contentTB = "content"
-		this.noisewordsTB = "noisewords"	
+		this.noisewordsTB = "noisewords"
+		this.memoryindexTB = "memoryindex"
   	}
 
   	/** This routine is used for all asynchronous initialization
@@ -76,11 +77,16 @@ class DocFinder {
 		{
 			var insertMongo = []
 
+			// O(n) , total no of distinct words present over all docuemnts
 			for ( var eachword of this.local_memory.keys() )	
 			{
-
+				insertMongo.push({ _id : eachword , content : this.local_memory.get(eachword) })
+				
 			}
 
+			// create collection and enter the data into persistent storage
+			this.createCollection(this.memoryindexTB)
+	                this.insertDocument(insertMongo,this.memoryindexTB, true)
 		}
 
 		await this.client.close();
