@@ -174,11 +174,19 @@ class DocFinder {
 		// later this will be inserted in DB
 		if ( ! this.content.has(name) )
 		{
-			this.content_mongo.push({ _id : name , content : contentText })
-			this.content.set(name,contentText)
+			//this.content_mongo.push({ _id : name , content : contentText })
+			//this.content.set(name,contentText)
 		}
 
 		// for optimization, content will be inserted when the close method is called
+
+
+		// while indexing, we will need all the noise words added, load them in-memory from mongodb
+		var allnoisewords = await this.db.collection(this.noisewordsTB).find({}).toArray()
+		for ( var word of allnoisewords )
+		{
+			this.noise_words.set(word._id, true)
+		}
 
 		
 		var normalized = []
@@ -232,7 +240,7 @@ class DocFinder {
    	*/
   	async docContent(name) 
 	{
-		const returndata = await this.db.collection(this.contentTB).findOne({ _id: name } )
+		var returndata = await this.db.collection(this.contentTB).findOne({ _id: name } )
 		
 		if ( returndata != null )
 		{
