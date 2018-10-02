@@ -28,14 +28,11 @@ class DocFinder {
 		this.content = new Map()
 
 		this.local_memory = new Map()
-		this.sentence_word_map = new Map()
 
 		this.noise_words = new Map()
 
 		/*
-		DATABASE NAMES
-		1. content
-		2. noisewords
+		* DATABASE NAMES
 		*/	
 		this.contentTB = "content"
 		this.noisewordsTB = "noisewords"
@@ -52,7 +49,15 @@ class DocFinder {
 		// open a connection to MongoDB 
 		// keep the connection open, close it at the end as every connection request impacts performance
 		this.client = await mongo.connect(this.dbURL);
-    		this.db = this.client.db(this.dbName); 
+    		this.db = this.client.db(this.dbName);
+
+		// load all noisewords into memory
+		var allnoisewords = await this.db.collection(this.noisewordsTB).find({}).toArray()
+                for ( var word of allnoisewords )
+                {
+                        this.noise_words.set(word._id, true)
+                }
+ 
   	}
 
   	/** Release all resources held by this doc-finder.  Specifically,
@@ -110,7 +115,7 @@ class DocFinder {
 		var streamlined_words = []
 
 	        // split string based on all whitespaces
-	        content = contentText.split(/\s+/g)
+	        var content = contentText.split(/\s+/g)
 		
 		// O(n)	
 	        for ( var word of content)
@@ -181,15 +186,6 @@ class DocFinder {
 		// for optimization, content will be inserted when the close method is called
 
 
-		// while indexing, we will need all the noise words added, load them in-memory from mongodb
-		var allnoisewords = await this.db.collection(this.noisewordsTB).find({}).toArray()
-		for ( var word of allnoisewords )
-		{
-			this.noise_words.set(word._id, true)
-		}
-
-		
-		var normalized = []
         	var sentences = contentText.split("\n")
 
         	// O( n*m )
@@ -274,8 +270,99 @@ class DocFinder {
    	*/
   	async find(terms) 
 	{
-    		//TODO
-    		return [];
+		var all_terms = []
+		
+		for ( var searchword of terms)
+		{
+			all_terms.push(await searchword )
+		}
+
+		var local = await this.db.collection(this.memoryindexTB).find({ _id: { $in: all_terms } } ).toArray()
+	
+		var resultantmap = new Map()
+	        var sentencerecorder = new Map()
+
+		for ( var match of local )
+		{
+			for ( var filename in match.content )
+			{
+				// O(1)
+                                if ( resultantmap.has(filename) )
+                                {
+                                        resultantmap.set(filename, resultantmap.get(filename) + match.content[filename][0] )
+                                }
+                                else
+                                {
+                                        resultantmap.set(filename, match.content[filename][0] )
+                                }
+
+				// O(1)
+                                // now record in sentencerecorder
+                                if ( ! (sentencerecorder.has(filename) ) )
+                                {
+                                        var linenumber = match.content[filename][2]
+                                        var sentence = match.content[filename][1]
+                                        sentencerecorder.set(filename,[linenumber , sentence])
+                                }
+                                else
+                                {
+                                        // O(1)
+                                        if ( filename in match.content && match.content[filename][2] != sentencerecorder.get(filename)[0] )
+                                        {
+                                                var linenumber = match.content[filename][2]
+                                                var sentence = match.content[filename][1]
+
+                                                if ( linenumber < sentencerecorder.get(filename)[0] )
+                                                {
+                                                        sentencerecorder.set(filename, [ linenumber , sentence + "\n" + sentencerecorder.get(filename)[1] ])
+                                                }
+                                                else
+                                                {
+                                                        sentencerecorder.set(filename, [ linenumber , sentencerecorder.get(filename)[1] + "\n" + sentence ])
+                                                }
+                                        }
+                                }
+
+			}
+		}
+
+	        // sort based on no of occurances
+	        // O( n*m log n*m )     - default time complexity of sort function in JS
+	        var sortedfiles = Array.from(new Map ( Array.from(resultantmap).sort((a, b) => { return b[1] - a[1] }) ).keys())
+
+
+	        // Total : O(n^2 * m^2)
+	        // O(n*m) : length of sortedfiles
+	        for ( var i = 0 ; i < sortedfiles.length; i++ )
+        	{
+	                // O(n*m - 1) : length of sortedfiles
+                	for ( var j = i; j < sortedfiles.length; j ++ )
+                	{
+                	        if ( resultantmap.get(sortedfiles[i]) == resultantmap.get(sortedfiles[j]) )
+                	        {
+                	                // The further along the alphabet, the higher the value. "b" > "a";
+                	                if ( sortedfiles[i] > sortedfiles[j] )
+                	                {
+                	                        var temp = sortedfiles[i]
+                	                        sortedfiles[i] = sortedfiles[j]
+                	                        sortedfiles[j] = temp
+                	                }
+                	        }
+                	        else
+                	        {
+                	                break;
+                	        }
+                	}
+        	}	
+
+
+		var result = [];
+        	for ( var filename of sortedfiles )
+        	{
+        	        result.push(filename + ": " + resultantmap.get(filename) + "\n" + sentencerecorder.get(filename)[1] + "\n" )
+        	}
+        	return result;
+	
   	}
 
   	/** Given a text string, return a ordered list of all completions of
