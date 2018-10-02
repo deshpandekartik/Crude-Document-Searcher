@@ -23,7 +23,10 @@ class DocFinder {
 		this.dbURL = dbUrl
 		this.client = null
         	this.db = null
-		this.content = []
+
+		this.content_mongo = []
+		this.content = new Map()
+
 		this.noise_words = new Map()
 
 		/*
@@ -53,12 +56,18 @@ class DocFinder {
   	*/
   	async close() 
 	{
+		if ( this.content_mongo.length > 1 )
+		{
+			this.createCollection(this.contentTB)
+			this.insertDocument(this.content_mongo, this.contentTB , true)
+		}
+		else if ( this.content_mongo.length === 1 )
+		{
+			this.createCollection(this.contentTB)
+			this.insertDocument(this.content_mongo, this.contentTB , false)
+		}
 
-		//this.createCollection("content")
-                //var myobj = { _id : name , content : "asdasd" };
-                //this.insertDocument(myobj,"content", false)
-
-		this.client.close();
+		await this.client.close();
   	}
 
   	/** Clear database */
@@ -102,7 +111,6 @@ class DocFinder {
 	*/
   	async addNoiseWords(noiseText) 
 	{
-		noiseText = "this"
 		var noise_words_mongo = []
 		var noisearray = noiseText.split("\n")
 	        for (const word of noisearray)
@@ -118,7 +126,8 @@ class DocFinder {
 		// create collection
 		this.createCollection(this.noisewordsTB)
 
-		if ( noise_words_mongo == 1 )
+		// insert all noise words at onece for optimization
+		if ( noise_words_mongo.length == 1 )
 		{
 			// insert one
 			this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
@@ -141,8 +150,13 @@ class DocFinder {
 		
 		// append document name, and the contentText to content, 
 		// later this will be inserted in DB
-		this.content.push({ _id : name , content : contentText })
-	
+		if ( ! this.content.has(name) )
+		{
+			this.content_mongo.push({ _id : name , content : contentText })
+			this.content.set(name,contentText)
+		}
+
+		// for optimization, content will be inserted when the close method is called
 	}
 
   	/** Return contents of document name.  If not found, throw an Error
@@ -151,8 +165,18 @@ class DocFinder {
    	*/
   	async docContent(name) 
 	{
-    		//TODO
-    		return '';
+		const returndata = await this.db.collection(this.contentTB).findOne({ _id: name } )
+		
+		if ( returndata != null )
+		{
+			return returndata.content;
+		}
+		else
+		{
+			// TODO: Add code for error handling
+			return ' ';
+		}
+		return ' ';
   	}
   
   	/** Given a list of normalized, non-noise words search terms, 
@@ -222,10 +246,15 @@ class DocFinder {
 	*/
 	createCollection(name)
 	{
-	        this.db.createCollection( name, function(err, res)
-	        {
-	                if (err) throw err;
-	        });
+	        	this.db.createCollection( name, function(err, res)
+	        	{
+	        	        if (err)
+                                {
+                                        console.log(new Error(err.code + ' : ' + err.errmsg));
+                                }
+	        	});
+			
+			// TODO : Empty the collection here	
 	}
 
 	/**
@@ -238,19 +267,24 @@ class DocFinder {
 		{
 			this.db.collection(collectionName).insertMany(record, function(err, res)
                         {
-                                if (err) throw err;
-                                console.log("1 document inserted");
+				if (err) 
+                                {
+                                        console.log(new Error(err.code + ' : ' + err.errmsg));
+                                }
                         });
 		}
 		else
 		{
                 	this.db.collection(collectionName).insertOne(record, function(err, res)
                 	{
-                	        if (err) throw err;
-                	        console.log("1 document inserted");
+                	        if (err) 
+				{
+					console.log(new Error(err.code + ' : ' + err.errmsg));
+				}
                 	});
 		}
 	}
+
 } //class DocFinder
 
 module.exports = DocFinder;
