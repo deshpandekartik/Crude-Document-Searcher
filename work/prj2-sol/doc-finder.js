@@ -27,6 +27,9 @@ class DocFinder {
 		this.content_mongo = []
 		this.content = new Map()
 
+		this.local_memory = new Map()
+		this.sentence_word_map = new Map()
+
 		this.noise_words = new Map()
 
 		/*
@@ -56,6 +59,7 @@ class DocFinder {
   	*/
   	async close() 
 	{
+		// first insert all content without indexing
 		if ( this.content_mongo.length > 1 )
 		{
 			this.createCollection(this.contentTB)
@@ -65,6 +69,18 @@ class DocFinder {
 		{
 			this.createCollection(this.contentTB)
 			this.insertDocument(this.content_mongo, this.contentTB , false)
+		}
+
+		// insert content with indexing
+		if ( this.content_mongo.length > 0 )
+		{
+			var insertMongo = []
+
+			for ( var eachword of this.local_memory.keys() )	
+			{
+
+			}
+
 		}
 
 		await this.client.close();
@@ -157,6 +173,51 @@ class DocFinder {
 		}
 
 		// for optimization, content will be inserted when the close method is called
+
+		
+		var normalized = []
+        	var sentences = contentText.split("\n")
+
+        	// O( n*m )
+        	for ( var line_number = 0; line_number < sentences.length; line_number++ )
+        	{
+        	        // for loop O(n) -  length of content
+	
+	                var sentence = sentences[line_number]
+	                sentence = sentence.split(/\s+/g)
+	
+        	        // O(m) - length of sentence
+        	        for ( var word of sentence)
+        	        {
+        	                // O(1)
+        	                word = await this.normalizeword(word)
+	
+                        	// O(1)         - Hashmap
+                        	// check if word empty or is a noise word
+               	         	if ( word != "" && !(this.noise_words.has(word)) )
+                	        {
+		                        // O(1)
+                		        if ( this.local_memory.has(word) )
+                        		{
+                        		        if ( this.local_memory.get(word).has(name) )
+                                		{
+							this.local_memory.get(word).get(name)[0] = this.local_memory.get(word).get(name)[0] + 1
+                                        		//this.local_memory.get(word).set(name, this.local_memory.get(word).get(name) + 1)
+                                		}
+                                		else
+                                		{
+                                        		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ] )
+                                		}
+                        		}
+                        		else
+                        		{
+                                		// DS : hashmap of hashmaps
+                                		this.local_memory.set(word, new Map())
+                                		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ])
+                        		}
+                	        }
+        	        }
+	        }
 	}
 
   	/** Return contents of document name.  If not found, throw an Error
