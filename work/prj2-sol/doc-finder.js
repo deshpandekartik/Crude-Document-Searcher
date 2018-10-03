@@ -51,10 +51,16 @@ class DocFinder {
 		this.client = await mongo.connect(this.dbURL);
     		this.db = await this.client.db(this.dbName);
 
+		// create all the required collection 
+		await this.createCollection(this.noisewordsTB)
+		await this.createCollection(this.contentTB)
+		await this.createCollection(this.memoryindexTB)
+
 		// load all noisewords into memory
 		var allnoisewords = await this.db.collection(this.noisewordsTB).find({}).toArray()
                 for ( var word of allnoisewords )
                 {
+			// Hash map, reduces time complexity O(1)
                         this.noise_words.set(word._id, true)
                 }
  
@@ -65,16 +71,16 @@ class DocFinder {
   	*/
   	async close() 
 	{
+		/* Database calls are costly segregating content insertion with insertMany */
+
 		// first insert all content without indexing
 		if ( this.content_mongo.length > 1 )
 		{
-			this.createCollection(this.contentTB)
-			this.insertDocument(this.content_mongo, this.contentTB , true)
+			await this.insertDocument(this.content_mongo, this.contentTB , true)
 		}
 		else if ( this.content_mongo.length === 1 )
 		{
-			this.createCollection(this.contentTB)
-			this.insertDocument(this.content_mongo, this.contentTB , false)
+			await this.insertDocument(this.content_mongo, this.contentTB , false)
 		}
 
 		// insert content with indexing
@@ -90,8 +96,7 @@ class DocFinder {
 			}
 
 			// create collection and enter the data into persistent storage
-			this.createCollection(this.memoryindexTB)
-	                this.insertDocument(insertMongo,this.memoryindexTB, true)
+	                await this.insertDocument(insertMongo,this.memoryindexTB, true)
 		}
 
 		await this.client.close();
@@ -152,19 +157,16 @@ class DocFinder {
 			}
         	}
 
-		// create collection
-		this.createCollection(this.noisewordsTB)
-
 		// insert all noise words at onece for optimization
 		if ( noise_words_mongo.length == 1 )
 		{
 			// insert one
-			this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
+			await this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
 		}
 		else
 		{
 			// insert many
-			this.insertDocument(noise_words_mongo, this.noisewordsTB , true)
+			await this.insertDocument(noise_words_mongo, this.noisewordsTB , true)
 		}
 
   	}
@@ -280,6 +282,12 @@ class DocFinder {
 		}
 
 		var local = await this.db.collection(this.memoryindexTB).find({ _id: { $in: all_terms } } ).toArray()
+
+		// No matches found
+		if ( local.length == 0 )
+		{
+			return [];
+		}
 	
 		var resultantmap = new Map()
 	        var sentencerecorder = new Map()
@@ -377,12 +385,11 @@ class DocFinder {
 		var result = []
                 var local = await this.db.collection(this.memoryindexTB).find({ _id: new RegExp('^' + text ) } ).toArray()
 
+		var sorted = local.sort(function (a, b) {return b.content.length - a.content.length})
                 for ( var match of local )
                 {
 			result.push(match._id)
 		}
-	
-		console.log(result.sort(function (a, b) {return a.length - b.length}))
 	
     		return result;
   	}
@@ -418,23 +425,24 @@ class DocFinder {
 	/**
 	*create a collection, if not exists in database
 	*/
-	createCollection(name)
+	async createCollection(name)
 	{
-	        	this.db.createCollection( name, function(err, res)
-	        	{
-	        	        if (err)
-                                {
-                                        console.log(new Error(err.code + ' : ' + err.errmsg));
-                                }
-	        	});
+	       	this.db.createCollection( name, function(err, res)
+	        {
+	                if (err)
+                   	{
+                     		console.log(new Error(err.code + ' : ' + err.errmsg));
+                    	}
+	        });
 		
-			await this.emptyCollection(name)
+		// Empty this collection, 
+		await this.emptyCollection(name)
 	}
 
 	/**
 	* Inserts a record into collection
 	*/
-	insertDocument(record, collectionName, insertMultiple)
+	async insertDocument(record, collectionName, insertMultiple)
 	{
 
 		if ( insertMultiple == true )
