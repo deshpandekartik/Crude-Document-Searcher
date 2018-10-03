@@ -371,8 +371,15 @@ class DocFinder {
    	*/
   	async complete(text) 
 	{
-    		//TODO
-    		return [];
+		var result = []
+                var local = await this.db.collection(this.memoryindexTB).find({ _id: new RegExp('^' + text ) } ).toArray()
+
+                for ( var match of local )
+                {
+			result.push(match._id)
+		}
+
+    		return result;
   	}
 
   	//Add private methods as necessary
