@@ -49,7 +49,7 @@ class DocFinder {
 		// open a connection to MongoDB 
 		// keep the connection open, close it at the end as every connection request impacts performance
 		this.client = await mongo.connect(this.dbURL);
-    		this.db = this.client.db(this.dbName);
+    		this.db = await this.client.db(this.dbName);
 
 		// load all noisewords into memory
 		var allnoisewords = await this.db.collection(this.noisewordsTB).find({}).toArray()
@@ -100,7 +100,9 @@ class DocFinder {
   	/** Clear database */
   	async clear() 
 	{
-    		//TODO
+		await this.emptyCollection(this.contentTB)
+		await this.emptyCollection(this.noisewordsTB)
+		await this.emptyCollection(this.memoryindexTB)
   	}
 
   	/** Return an array of non-noise normalized words from string
@@ -179,8 +181,8 @@ class DocFinder {
 		// later this will be inserted in DB
 		if ( ! this.content.has(name) )
 		{
-			//this.content_mongo.push({ _id : name , content : contentText })
-			//this.content.set(name,contentText)
+			this.content_mongo.push({ _id : name , content : contentText })
+			this.content.set(name,contentText)
 		}
 
 		// for optimization, content will be inserted when the close method is called
@@ -371,6 +373,7 @@ class DocFinder {
    	*/
   	async complete(text) 
 	{
+		text = text.split(' ').pop()
 		var result = []
                 var local = await this.db.collection(this.memoryindexTB).find({ _id: new RegExp('^' + text ) } ).toArray()
 
@@ -378,7 +381,9 @@ class DocFinder {
                 {
 			result.push(match._id)
 		}
-
+	
+		console.log(result.sort(function (a, b) {return a.length - b.length}))
+	
     		return result;
   	}
 
@@ -422,8 +427,8 @@ class DocFinder {
                                         console.log(new Error(err.code + ' : ' + err.errmsg));
                                 }
 	        	});
-			
-			// TODO : Empty the collection here	
+		
+			await this.emptyCollection(name)
 	}
 
 	/**
@@ -452,6 +457,14 @@ class DocFinder {
 				}
                 	});
 		}
+	}
+
+	/**
+	* Wrapper to empty a collection
+	*/
+	async emptyCollection( collectionName )
+	{
+		await this.db.collection(collectionName).deleteMany({})
 	}
 
 } //class DocFinder
