@@ -176,7 +176,7 @@ class DocFinder {
                                 for ( var contentInstance of allcontent ) {
                                         // Hash map, reduces time complexity O(1)
                                         this.content.set(contentInstance._id, contentInstance.content)
-                                        this.content_mongo.push({ _id : contentInstance._id, content : true })
+                                        this.content_mongo.push({ _id : contentInstance._id, content : contentInstance.content })
                                 }
                                 await this.emptyCollection(this.contentTB)
                         }
@@ -248,13 +248,13 @@ class DocFinder {
                                         		//this.local_memory.get(word).set(name, this.local_memory.get(word).get(name) + 1)
                                 		}
                                 		else {
-                                        		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ] )
+                                        		this.local_memory.get(word).set(name, [ 1, line_number ] )
                                 		}
                         		}
                         		else {
                                 		// DS : hashmap of hashmaps
                                 		this.local_memory.set(word, new Map())
-                                		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ])
+                                		this.local_memory.get(word).set(name, [ 1, line_number ])
                         		}
                 	        }
         	        }
@@ -306,6 +306,19 @@ class DocFinder {
 
 		var local = await this.db.collection(this.memoryindexTB).find({ _id: { $in: all_terms } } ).toArray()
 
+		
+		var Rawcontent = new Map()
+		// load all content into memory
+                if (this.Mongo_Collections.includes(this.contentTB))  {
+                        if ( this.content.size === 0 ) {
+                                var allcontent = await this.db.collection(this.contentTB).find({}).toArray()
+                                for ( var contentInstance of allcontent ) {
+                                        // Hash map, reduces time complexity O(1)
+                                        Rawcontent.set(contentInstance._id, contentInstance.content)
+                                }
+                        }
+                }
+
 		// No matches found
 		if ( local.length == 0 ) {
 			return [];
@@ -316,42 +329,26 @@ class DocFinder {
 
 		for ( var match of local ) {
 			for ( var filename in match.content ) {
+					
+				var data = match.content[filename]
 				// O(1)
                                 if ( resultantmap.has(filename) ) {
-                                        resultantmap.set(filename, resultantmap.get(filename) + match.content[filename][0] )
+					resultantmap.get(filename)[0] = resultantmap.get(filename)[0] + data[0]
+					
+					if ( data[1] < resultantmap.get(filename)[1] )
+					{
+						resultantmap.get(filename)[1] = data[1]
+					}
                                 }
                                 else {
-                                        resultantmap.set(filename, match.content[filename][0] )
+                                        resultantmap.set(filename, [ data[0], data[1] ] )
                                 }
-
-				// O(1)
-                                // now record in sentencerecorder
-                                if ( ! (sentencerecorder.has(filename) ) ) {
-                                        var linenumber = match.content[filename][2]
-                                        var sentence = match.content[filename][1]
-                                        sentencerecorder.set(filename,[linenumber , sentence])
-                                }
-                                else {
-                                        // O(1)
-                                        if ( filename in match.content && match.content[filename][2] != sentencerecorder.get(filename)[0] ) {
-                                                var linenumber = match.content[filename][2]
-                                                var sentence = match.content[filename][1]
-
-                                                if ( linenumber < sentencerecorder.get(filename)[0] ) {
-                                                        sentencerecorder.set(filename, [ linenumber , sentence + "\n" + sentencerecorder.get(filename)[1] ])
-                                                }
-                                                else {
-                                                        sentencerecorder.set(filename, [ linenumber , sentencerecorder.get(filename)[1] + "\n" + sentence ])
-                                                }
-                                        }
-                                }
-
 			}
 		}
 
 	        // sort based on no of occurances
 	        // O( n*m log n*m )     - default time complexity of sort function in JS
-	        var sortedfiles = Array.from(new Map ( Array.from(resultantmap).sort((a, b) => { return b[1] - a[1] }) ).keys())
+	        var sortedfiles = Array.from(new Map ( Array.from(resultantmap).sort((a, b) => { return b[1][0] - a[1][0] }) ).keys())
 
 
 	        // Total : O(n^2 * m^2)
@@ -359,7 +356,7 @@ class DocFinder {
 	        for ( var i = 0 ; i < sortedfiles.length; i++ ) {
 	                // O(n*m - 1) : length of sortedfiles
                 	for ( var j = i; j < sortedfiles.length; j ++ ) {
-                	        if ( resultantmap.get(sortedfiles[i]) == resultantmap.get(sortedfiles[j]) ) {
+                	        if ( resultantmap.get(sortedfiles[i])[0] == resultantmap.get(sortedfiles[j])[0] ) {
                 	                // The further along the alphabet, the higher the value. "b" > "a";
                 	                if ( sortedfiles[i] > sortedfiles[j] ) {
                 	                        var temp = sortedfiles[i]
@@ -376,7 +373,7 @@ class DocFinder {
 
 		var result = [];
         	for ( var filename of sortedfiles ) {
-        	        result.push(filename + ": " + resultantmap.get(filename) + "\n" + sentencerecorder.get(filename)[1] + "\n" )
+	    		result.push(filename + ": " + resultantmap.get(filename)[0] + "\n" + Rawcontent.get(filename).split("\n")[resultantmap.get(filename)[1]]  + "\n" )
         	}
         	return result;
 	
