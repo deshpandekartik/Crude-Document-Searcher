@@ -28,7 +28,7 @@ class DocFinder {
 		this.content_mongo = []
 		this.content = new Map()
 
-		this.local_memory = new Map()
+		this.local_memory = {}
 
 		this.noise_words = new Map()
 
@@ -52,12 +52,11 @@ class DocFinder {
     		this.db = await this.client.db(this.dbName);
 
 		// load all collection names in local memory
-                var collectionArray = await this.db.listCollections().toArray()
-                for ( var eachCollection of collectionArray )
-                {
-                        this.Mongo_Collections.push(eachCollection.name)
-                }
-	
+		var collectionArray = await this.db.listCollections().toArray()
+		for ( var eachCollection of collectionArray )
+		{
+			this.Mongo_Collections.push(eachCollection.name)
+		}
 
 		// load all noisewords into memory
 		if (this.Mongo_Collections.includes(this.noisewordsTB) )  {
@@ -73,6 +72,7 @@ class DocFinder {
 			// Noise words collection not present, create collection
                 	await this.createCollection(this.noisewordsTB)	
 		}
+
   	}
 
   	/** Release all resources held by this doc-finder.  Specifically,
@@ -91,9 +91,11 @@ class DocFinder {
 			var insertMongo = []
 
 			// O(n) , total no of distinct words present over all docuemnts
-			for ( var eachword of this.local_memory.keys() ) {
-				insertMongo.push({ _id : eachword , content : this.local_memory.get(eachword) })
+			for ( var eachword in this.local_memory ) {
+				insertMongo.push({ _id : eachword , content : this.local_memory[eachword] })
+				
 			}
+
 			// create collection and enter the data into persistent storage
 	                await this.insertDocument(insertMongo,this.memoryindexTB, true)
 		}
@@ -150,11 +152,7 @@ class DocFinder {
         	}
 
 		// insert all noise words at onece for optimization
-		if ( noise_words_mongo.length == 1 ) {
-			// insert one
-			await this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
-		}
-		else {
+		if ( noise_words_mongo.length > 0 ) {
 			// insert many
 			await this.insertDocument(noise_words_mongo, this.noisewordsTB , true)
 		}
@@ -167,19 +165,19 @@ class DocFinder {
    	*  This operation should be idempotent.
    	*/ 
   	async addContent(name, contentText) {
-
+	
 
                 // load all content into memory
                 if (this.Mongo_Collections.includes(this.contentTB))  {
-                        if ( this.content.size === 0 ) {
-                                var allcontent = await this.db.collection(this.contentTB).find({}).toArray()
-                                for ( var contentInstance of allcontent ) {
-                                        // Hash map, reduces time complexity O(1)
-                                        this.content.set(contentInstance._id, contentInstance.content)
-                                        this.content_mongo.push({ _id : contentInstance._id, content : true })
-                                }
-                                await this.emptyCollection(this.contentTB)
-                        }
+			if ( this.content.size === 0 ) {
+	                        var allcontent = await this.db.collection(this.contentTB).find({}).toArray()
+        	                for ( var contentInstance of allcontent ) {
+                	                // Hash map, reduces time complexity O(1)
+                	                this.content.set(contentInstance._id, contentInstance.content)
+					this.content_mongo.push({ _id : contentInstance._id, content : true })
+                	        }
+				await this.emptyCollection(this.contentTB)
+			}
                 }
                 else
                 {
@@ -188,19 +186,22 @@ class DocFinder {
                 }
 
 
-                // load all indexes into memory
+		// load all indexes into memory
                 if (this.Mongo_Collections.includes(this.memoryindexTB) )  {
-                        if ( this.local_memory.size === 0 ) {
-                                var memoryIndexes = await this.db.collection(this.memoryindexTB).find({}).toArray()
-                                for ( var indexinstance of memoryIndexes ) {
-					this.local_memory.set(indexinstance._id, new Map())
-				
-					for ( var content_filename in indexinstance.content ) {
-						this.local_memory.get(indexinstance._id).set(content_filename,indexinstance.content[content_filename])
-					}
-                                }
-                                await this.emptyCollection(this.memoryindexTB)
-                        }
+			var flag1 = false
+			for ( var wordname in this.local_memory ) {
+				flag1 = true
+				break;
+			}
+			if ( flag1 === false )
+			{
+                        	var memoryIndexes = await this.db.collection(this.memoryindexTB).find({}).toArray()
+                        	for ( var indexinstance of memoryIndexes ) {
+                        	        // Hash map, reduces time complexity O(1)
+                        	        this.local_memory[indexinstance._id] =  indexinstance.content
+                        	}
+				await this.emptyCollection(this.memoryindexTB)
+			}
                 }
                 else
                 {
@@ -208,12 +209,10 @@ class DocFinder {
                         await this.createCollection(this.memoryindexTB)
                 }
 
-
-	
 		// append document name, and the contentText to content, 
 		// later this will be inserted in DB
 		if ( ! this.content.has(name) ) {
-			this.content_mongo.push({ _id : name , content : contentText })
+			this.content_mongo.push({ _id : name , content : true })
 			this.content.set(name,contentText)
 		}
 		else
@@ -242,19 +241,19 @@ class DocFinder {
                         	// check if word empty or is a noise word
                	         	if ( word != "" && !(this.noise_words.has(word)) ) {
 		                        // O(1)
-                		        if ( this.local_memory.has(word) ){
-                        		        if ( this.local_memory.get(word).has(name) ) {
-							this.local_memory.get(word).get(name)[0] = this.local_memory.get(word).get(name)[0] + 1
-                                        		//this.local_memory.get(word).set(name, this.local_memory.get(word).get(name) + 1)
+                		        if ( word in this.local_memory ){
+                        		        if ( name in this.local_memory[word] ) {
+							this.local_memory[word][name][0] = this.local_memory[word][name][0] + 1
                                 		}
                                 		else {
-                                        		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ] )
+							this.local_memory[word] = {}
+                                        		this.local_memory[word][name] = [ 1,  sentences[line_number] , line_number ]
                                 		}
                         		}
                         		else {
                                 		// DS : hashmap of hashmaps
-                                		this.local_memory.set(word, new Map())
-                                		this.local_memory.get(word).set(name, [ 1,  sentences[line_number] , line_number ])
+						this.local_memory[word] = {}
+                                		this.local_memory[word][name] = [ 1,  sentences[line_number] , line_number ]
                         		}
                 	        }
         	        }
@@ -448,14 +447,14 @@ class DocFinder {
 		if ( insertMultiple == true ) {
 			this.db.collection(collectionName).insertMany(record, function(err, res) {
 				if (err) {
-                                        console.log(record);
+                                        console.log(err);
                                 }
                         });
 		}
 		else {
                 	this.db.collection(collectionName).insertOne(record, function(err, res) {
                 	        if (err) {
-					console.log(new Error(err.code + ' : ' + err.errmsg));
+					console.log(err);
 				}
                 	});
 		}
