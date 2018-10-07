@@ -73,30 +73,25 @@ class DocFinder {
 			// Noise words collection not present, create collection
                 	await this.createCollection(this.noisewordsTB)	
 		}
-  	}
+  
+
+                if ( ! this.Mongo_Collections.includes(this.contentTB))  {
+                        // ContentTB collection not present, create collection
+                        await this.createCollection(this.contentTB)
+                }
+
+                if ( ! this.Mongo_Collections.includes(this.memoryindexTB) )  {
+                        // Memory indexes create collection
+                        await this.createCollection(this.memoryindexTB)
+                }
+
+
+	}
 
   	/** Release all resources held by this doc-finder.  Specifically,
    	*  close any database connections.
   	*/
   	async close() {
-		/* Database calls are costly, segregating content insertion with insertMany */
-
-		// first insert all content without indexing
-		if ( this.content_mongo.length > 0 ) {
-			await this.insertDocument(this.content_mongo, this.contentTB , true)
-		}
-
-		// insert content with indexing
-		if ( this.content_mongo.length > 0 ) {
-			var insertMongo = []
-
-			// O(n) , total no of distinct words present over all docuemnts
-			for ( var eachword of this.local_memory.keys() ) {
-				insertMongo.push({ _id : eachword , content : this.local_memory.get(eachword) })
-			}
-			// create collection and enter the data into persistent storage
-	                await this.insertDocument(insertMongo,this.memoryindexTB, true)
-		}
 
 		await this.client.close();
   	}
@@ -169,59 +164,18 @@ class DocFinder {
   	async addContent(name, contentText) {
 
 
-                // load all content into memory
-                if (this.Mongo_Collections.includes(this.contentTB))  {
-                        if ( this.content.size === 0 ) {
-                                var allcontent = await this.db.collection(this.contentTB).find({}).toArray()
-                                for ( var contentInstance of allcontent ) {
-                                        // Hash map, reduces time complexity O(1)
-                                        this.content.set(contentInstance._id, contentInstance.content)
-                                        this.content_mongo.push({ _id : contentInstance._id, content : contentInstance.content })
-                                }
-                                await this.emptyCollection(this.contentTB)
-                        }
+
+                // append document name, and the contentText to content,
+                // later this will be inserted in DB
+                if ( ! this.content.has(name) ) {
+			//await this.insertDocument({ _id : name , content : contentText }, this.contentTB, false)
+                        this.content.set(name,contentText)
                 }
                 else
                 {
-                        // ContentTB collection not present, create collection
-                        await this.createCollection(this.contentTB)
+                        return;
                 }
 
-
-                // load all indexes into memory
-                if (this.Mongo_Collections.includes(this.memoryindexTB) )  {
-                        if ( this.local_memory.size === 0 ) {
-                                var memoryIndexes = await this.db.collection(this.memoryindexTB).find({}).toArray()
-                                for ( var indexinstance of memoryIndexes ) {
-					this.local_memory.set(indexinstance._id, new Map())
-				
-					for ( var content_filename in indexinstance.content ) {
-						this.local_memory.get(indexinstance._id).set(content_filename,indexinstance.content[content_filename])
-					}
-                                }
-                                await this.emptyCollection(this.memoryindexTB)
-                        }
-                }
-                else
-                {
-                        // Memory indexes create collection
-                        await this.createCollection(this.memoryindexTB)
-                }
-
-
-	
-		// append document name, and the contentText to content, 
-		// later this will be inserted in DB
-		if ( ! this.content.has(name) ) {
-			this.content_mongo.push({ _id : name , content : contentText })
-			this.content.set(name,contentText)
-		}
-		else
-		{
-			return;
-		}
-
-		// for optimization, content will be inserted when the close method is called
 
 
         	var sentences = contentText.split("\n")
@@ -245,7 +199,6 @@ class DocFinder {
                 		        if ( this.local_memory.has(word) ){
                         		        if ( this.local_memory.get(word).has(name) ) {
 							this.local_memory.get(word).get(name)[0] = this.local_memory.get(word).get(name)[0] + 1
-                                        		//this.local_memory.get(word).set(name, this.local_memory.get(word).get(name) + 1)
                                 		}
                                 		else {
                                         		this.local_memory.get(word).set(name, [ 1, line_number ] )
@@ -259,6 +212,26 @@ class DocFinder {
                 	        }
         	        }
 	        }
+
+
+                var insertMongo = []
+                for ( var eachword of this.local_memory.keys() ) {
+
+                        insertMongo.push({
+			        updateOne: {
+            				filter: {"_id": eachword},
+            				update: {"$set": {
+                    						"content": this.local_memory.get(eachword)
+							}
+            					 },
+            					 upsert: true
+        				}
+    			})
+                }
+		
+		// write all data to persistent storage using bulkwrite
+                await this.db.collection(this.memoryindexTB).bulkWrite(insertMongo)
+
 	}
 
   	/** Return contents of document name.  If not found, throw an Error
@@ -456,6 +429,15 @@ class DocFinder {
 				}
                 	});
 		}
+	}
+	
+	async updateDocument(record, collectionName )
+	{
+		var query = { _id : record._id };
+		var vals =  { $push: { content: record.content } }
+		var exts = { upsert : true }
+		this.db.collection(collectionName).updateOne(query, vals, exts); 
+
 	}
 
 	/**
