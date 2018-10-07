@@ -48,7 +48,7 @@ class DocFinder {
 
 		// open a connection to MongoDB 
 		// keep the connection open, close it at the end as every connection request impacts performance
-		this.client = await mongo.connect(this.dbURL, { useNewUrlParser: true });
+		this.client = await mongo.connect(this.dbURL, MONGO_OPTIONS);
     		this.db = await this.client.db(this.dbName);
 
 		// load all collection names in local memory
