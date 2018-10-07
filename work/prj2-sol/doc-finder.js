@@ -209,6 +209,7 @@ class DocFinder {
 	        }
 
 
+		/*
                 var insertMongo = []
                 for ( var eachword of this.local_memory.keys() ) {
 
@@ -226,6 +227,23 @@ class DocFinder {
 		
 		// write all data to persistent storage using bulkwrite
                 await this.db.collection(this.memoryindexTB).bulkWrite(insertMongo)
+
+		*/
+
+		let batch = this.db.collection(this.memoryindexTB).initializeUnorderedBulkOp({useLegacyOps: true})
+		for ( var eachword of this.local_memory.keys()) {
+
+			//adding the update queries to the batch from the live copy and sending the state
+			//to the word doc table for presistence
+			await batch.find({ _id : eachword }).upsert().updateOne( {  $set : { "content" : this.local_memory.get(eachword) } } );
+		}
+		try{	
+			//finally, executing the batch based on upsert option
+			await batch.execute(function(err,result){});
+		}catch(err)
+		{
+			//nothing to throw from here	
+		}
 
 	}
 
