@@ -229,7 +229,8 @@ class DocFinder {
                 await this.db.collection(this.memoryindexTB).bulkWrite(insertMongo)
 
 		*/
-
+		
+		// batch mode for insertion more efficient
 		let batch = this.db.collection(this.memoryindexTB).initializeUnorderedBulkOp({useLegacyOps: true})
 		for ( var eachword of this.local_memory.keys()) {
 
@@ -380,6 +381,9 @@ class DocFinder {
    	*/
   	async complete(text) {
 		text = text.split(' ').pop()
+
+		if (!text.match(/[a-zA-Z]$/)) return [];
+
 		var result = []
                 var local = await this.db.collection(this.memoryindexTB).find({ _id: new RegExp('^' + text ) } ).toArray()
 
@@ -423,9 +427,6 @@ class DocFinder {
 	*/
 	async createCollection(name) {
 	       	this.db.createCollection( name )
-		
-		// Empty this collection, 
-		await this.emptyCollection(name)
 	}
 
 	/**
