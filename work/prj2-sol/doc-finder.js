@@ -48,7 +48,7 @@ class DocFinder {
 
 		// open a connection to MongoDB 
 		// keep the connection open, close it at the end as every connection request impacts performance
-		this.client = await mongo.connect(this.dbURL);
+		this.client = await mongo.connect(this.dbURL, { useNewUrlParser: true });
     		this.db = await this.client.db(this.dbName);
 
 		// load all collection names in local memory
@@ -145,11 +145,7 @@ class DocFinder {
         	}
 
 		// insert all noise words at onece for optimization
-		if ( noise_words_mongo.length == 1 ) {
-			// insert one
-			await this.insertDocument(noise_words_mongo, this.noisewordsTB , false)
-		}
-		else {
+		if ( noise_words_mongo.length > 0 ) {
 			// insert many
 			await this.insertDocument(noise_words_mongo, this.noisewordsTB , true)
 		}
@@ -163,12 +159,11 @@ class DocFinder {
    	*/ 
   	async addContent(name, contentText) {
 
-
-
                 // append document name, and the contentText to content,
                 // later this will be inserted in DB
                 if ( ! this.content.has(name) ) {
-			//await this.insertDocument({ _id : name , content : contentText }, this.contentTB, false)
+
+			this.updateDocument({ _id : name , content : contentText }, this.contentTB)
                         this.content.set(name,contentText)
                 }
                 else
@@ -220,8 +215,8 @@ class DocFinder {
                         insertMongo.push({
 			        updateOne: {
             				filter: {"_id": eachword},
-            				update: {"$set": {
-                    						"content": this.local_memory.get(eachword)
+            				update: {"$set": { 
+                					 "content": this.local_memory.get(eachword)
 							}
             					 },
             					 upsert: true
@@ -245,8 +240,9 @@ class DocFinder {
 			return returndata.content;
 		}
 		else {
-			// TODO: Add code for error handling
-			return ' ';
+			var error = new Error(`doc ${name} not found`)
+			error.code = 'NOT_FOUND'
+			throw error;
 		}
 		return ' ';
   	}
@@ -304,17 +300,25 @@ class DocFinder {
 			for ( var filename in match.content ) {
 					
 				var data = match.content[filename]
+				// data[0] = score
+				// data[1] = line_number
+				// resultant[2] = sentence
 				// O(1)
                                 if ( resultantmap.has(filename) ) {
 					resultantmap.get(filename)[0] = resultantmap.get(filename)[0] + data[0]
 					
-					if ( data[1] < resultantmap.get(filename)[1] )
-					{
+					if ( data[1] < resultantmap.get(filename)[1] ) {
 						resultantmap.get(filename)[1] = data[1]
+						resultantmap.get(filename)[2] = Rawcontent.get(filename).split("\n")[data[1]] + "\n" + resultantmap.get(filename)[2]
+					}
+					else if ( data[1] > resultantmap.get(filename)[1] ) {
+						resultantmap.get(filename)[1] = data[1]
+                                                resultantmap.get(filename)[2] = resultantmap.get(filename)[2] + "\n" + Rawcontent.get(filename).split("\n")[data[1]]
+
 					}
                                 }
                                 else {
-                                        resultantmap.set(filename, [ data[0], data[1] ] )
+                                        resultantmap.set(filename, [ data[0], data[1], Rawcontent.get(filename).split("\n")[data[1]] ] )
                                 }
 			}
 		}
@@ -346,7 +350,7 @@ class DocFinder {
 
 		var result = [];
         	for ( var filename of sortedfiles ) {
-	    		result.push(filename + ": " + resultantmap.get(filename)[0] + "\n" + Rawcontent.get(filename).split("\n")[resultantmap.get(filename)[1]]  + "\n" )
+	    		result.push(filename + ": " + resultantmap.get(filename)[0] + "\n" + resultantmap.get(filename)[2]  + "\n" )
         	}
         	return result;
 	
@@ -400,11 +404,7 @@ class DocFinder {
 	*create a collection, if not exists in database
 	*/
 	async createCollection(name) {
-	       	this.db.createCollection( name, function(err, res) {
-	                if (err) {
-                     		console.log(new Error(err.code + ' : ' + err.errmsg));
-                    	}
-	        });
+	       	this.db.createCollection( name )
 		
 		// Empty this collection, 
 		await this.emptyCollection(name)
@@ -416,27 +416,16 @@ class DocFinder {
 	async insertDocument(record, collectionName, insertMultiple) {
 
 		if ( insertMultiple == true ) {
-			this.db.collection(collectionName).insertMany(record, function(err, res) {
-				if (err) {
-                                        console.log(record);
-                                }
-                        });
+			this.db.collection(collectionName).insertMany(record)
 		}
 		else {
-                	this.db.collection(collectionName).insertOne(record, function(err, res) {
-                	        if (err) {
-					console.log(new Error(err.code + ' : ' + err.errmsg));
-				}
-                	});
+                	this.db.collection(collectionName).insertOne(record)
 		}
 	}
 	
 	async updateDocument(record, collectionName )
 	{
-		var query = { _id : record._id };
-		var vals =  { $push: { content: record.content } }
-		var exts = { upsert : true }
-		this.db.collection(collectionName).updateOne(query, vals, exts); 
+		this.db.collection(collectionName).updateOne( { "_id" : record._id }, { $set: { "content" : record.content } }, { upsert : true }); 
 
 	}
 
