@@ -39,18 +39,48 @@ function serve(port, docFinder) {
 module.exports = { serve };
 
 function setupRoutes(app) {
-  app.use(cors());            //for security workaround in future projects
-  app.use(bodyParser.json()); //all incoming bodies are JSON
+  	app.use(cors());            //for security workaround in future projects
+  	app.use(bodyParser.json()); //all incoming bodies are JSON
 
-  //@TODO: add routes for required 4 services
+  	//@TODO: add routes for required 4 services
 
-  app.use(doErrors()); //must be last; setup for server errors   
+  	// returns the content of document
+  	app.get(`${DOCS}/:name`, getContent(app));
+
+  	app.use(doErrors()); //must be last; setup for server errors   
 }
 
 //@TODO: add handler creation functions called by route setup
 //routine for each individual web service.  Note that each
 //returned handler should be wrapped using errorWrap() to
 //ensure that any internal errors are handled reasonably.
+
+function getContent(app) {
+        return errorWrap(async function(req, res) {
+                try {
+
+                        const name = req.params.name;
+                        const results = await app.locals.finder.docContent(name);
+
+                        if (results.length === 0) {
+                                throw {
+                                        isDomain: true,
+                                        errorCode: 'NOT_FOUND',
+                                        message: `document ${name} not found`,
+                                };
+                        }
+                        else {
+                                res.json(results);
+                        }
+                }
+                catch(err) {
+   			throw err;
+	       		doErrors(app)
+                }
+        });
+}
+
+
 
 /** Return error handler which ensures a server error results in nice
  *  JSON sent back to client with details logged on console.
