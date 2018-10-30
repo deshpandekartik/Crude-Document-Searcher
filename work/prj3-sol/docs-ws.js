@@ -46,6 +46,7 @@ function setupRoutes(app) {
 
   	// returns the content of document
   	app.get(`${DOCS}/:name`, getContent(app));
+	app.get(`${DOCS}/`,searchContent(app))
 
   	app.use(doErrors()); //must be last; setup for server errors   
 }
@@ -76,6 +77,78 @@ function getContent(app) {
                 catch(err) {
    			throw err;
 	       		doErrors(app)
+                }
+        });
+}
+
+function searchContent(app) {
+        return errorWrap(async function(req, res) {
+                try {	
+			let start = 0;
+			let count = 5;
+		
+			const searchstring = req.query.q
+                        let results = await app.locals.finder.find(searchstring);		
+
+			if ( 'start' in req.query ) {
+
+				if ( Number(req.query.start) != NaN && req.query.start > 0 && req.query.start < results.length ) {
+					start = Number(req.query.start)
+				}
+				else {
+					// TODO : send error
+				}
+				
+				if ( 'count' in req.query ) {
+
+					if ( Number(req.query.count) != NaN && req.query.count > 0 ) {
+
+						if ( req.query.count + start > results.length ) {
+							// TODO : reset count		
+						}
+						else {
+							count = Number(req.query.count)
+						}
+					}
+					else {
+						// TODO: send error
+					}
+				}
+			}
+
+			if ( start + count > results.length ) {
+				count = results.length - start
+			}		
+
+                        if (results.length === 0) {
+                                throw {
+                                        isDomain: true,
+                                        errorCode: 'NOT_FOUND',
+                                        message: `${searchstring} not found in any dcouments`,
+                                };
+                        }
+                        else {
+				results = results.slice(start, start + count)
+				
+				for ( let eachobj in  results ) {
+					results[eachobj].href =  "http://" + req.get('host') + "/docs/" + results[eachobj].name
+				}
+				//res.append({ totalCount : results.length } )
+
+				let selfv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count) }
+				start = start + count
+				count = 5
+				let nextv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
+				let newresults = {}
+				newresults.results = results
+				newresults.links = [ selfv , nextv ]
+
+                                res.json(newresults);
+                        }
+                }
+                catch(err) {
+                        throw err;
+                        doErrors(app)
                 }
         });
 }
