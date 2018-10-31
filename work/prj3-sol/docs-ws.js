@@ -61,7 +61,6 @@ function setupRoutes(app) {
 function getContent(app) {
         return errorWrap(async function(req, res) {
                 try {
-
                         const name = req.params.name;
                         const results = await app.locals.finder.docContent(name);
 
@@ -88,8 +87,10 @@ function searchContent(app) {
                 try {	
 			let start = 0;
 			let count = 5;
-		
+			
+			let orignalcount = 5	
 			const searchstring = req.query.q
+
                         let mainresults = await app.locals.finder.find(searchstring);		
 			let results = mainresults;
 			if ( 'start' in req.query ) {
@@ -98,22 +99,27 @@ function searchContent(app) {
 					start = Number(req.query.start)
 				}
 				else {
-					// TODO : send error
+					throw {
+                	                        isDomain: true,
+                	                        errorCode: 'BAD_PARAM',
+                	                        message: `bad query parameter \"start\"`,
+        	                        };
+	
 				}
 				
 				if ( 'count' in req.query ) {
 
 					if ( Number(req.query.count) != NaN && req.query.count > 0 ) {
-
-						if ( req.query.count + start > results.length ) {
-							// TODO : reset count		
-						}
-						else {
-							count = Number(req.query.count)
-						}
+						count = Number(req.query.count)
+						orignalcount = count
 					}
 					else {
-						// TODO: send error
+						throw {
+                	                                isDomain: true,
+	                                                errorCode: 'BAD_PARAM',
+        	                                        message: `bad query parameter \"count\"`,
+                        	                };
+
 					}
 				}
 			}
@@ -125,19 +131,46 @@ function searchContent(app) {
 			results = results.slice(start, start + count)
 				
 			for ( let eachobj in  results ) {
-				results[eachobj].href =  "http://" + req.get('host') + "/docs/" + results[eachobj].name
+				results[eachobj].href =  encodeURI(_currentUrl(req) + "/docs/" + results[eachobj].name)
 			}
 
-			let selfv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count) }
-			start = start + count
-			count = 5
-			let nextv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
+			let selfv = { rel : "self", href : encodeURI(_currentUrl(req) + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + orignalcount) }
+
+			let reltext = ""; 
+			if ( start + count >= mainresults.length ) {
+				// previous
+				reltext = "previous"
+				count = 5
+
+				if ( start >= mainresults.length ) {
+					start = mainresults.length - 5
+				}
+				else {
+					start = start - 5
+				}	
+			}
+			else {
+				// next
+				reltext = "next"
+				start = start + count
+				count = 5
+			}
+
+			if ( start < 0 ) {
+				start = 0
+			}
+
+			let nextv = { rel : reltext , href : encodeURI(_currentUrl(req) + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
 			let newresults = {}
 			newresults.results = results
 			newresults.totalCount = mainresults.length
 
-			// TODO :  Add total number of results
-			newresults.links = [ selfv , nextv ]
+			if ( mainresults.length > 0 ) {
+				newresults.links = [ selfv , nextv ]
+			}
+			else {
+				newresults.links = [ selfv ]
+			}
 
 
                      	res.json(newresults);
@@ -160,6 +193,7 @@ function addContent(app) {
     		}
     		catch(err) {
 			throw err
+			doErrors(app)
     		}
   	});
 }
