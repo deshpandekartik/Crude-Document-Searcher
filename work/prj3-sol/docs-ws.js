@@ -44,9 +44,11 @@ function setupRoutes(app) {
 
   	//@TODO: add routes for required 4 services
 
-  	// returns the content of document
   	app.get(`${DOCS}/:name`, getContent(app));
 	app.get(`${DOCS}/`,searchContent(app))
+	app.post(`${DOCS}/`, addContent(app));
+	app.get(`${COMPLETIONS}/`, getCompletions(app))
+		
 
   	app.use(doErrors()); //must be last; setup for server errors   
 }
@@ -88,8 +90,8 @@ function searchContent(app) {
 			let count = 5;
 		
 			const searchstring = req.query.q
-                        let results = await app.locals.finder.find(searchstring);		
-
+                        let mainresults = await app.locals.finder.find(searchstring);		
+			let results = mainresults;
 			if ( 'start' in req.query ) {
 
 				if ( Number(req.query.start) != NaN && req.query.start > 0 && req.query.start < results.length ) {
@@ -120,31 +122,25 @@ function searchContent(app) {
 				count = results.length - start
 			}		
 
-                        if (results.length === 0) {
-                                throw {
-                                        isDomain: true,
-                                        errorCode: 'NOT_FOUND',
-                                        message: `${searchstring} not found in any dcouments`,
-                                };
-                        }
-                        else {
-				results = results.slice(start, start + count)
+			results = results.slice(start, start + count)
 				
-				for ( let eachobj in  results ) {
-					results[eachobj].href =  "http://" + req.get('host') + "/docs/" + results[eachobj].name
-				}
-				//res.append({ totalCount : results.length } )
+			for ( let eachobj in  results ) {
+				results[eachobj].href =  "http://" + req.get('host') + "/docs/" + results[eachobj].name
+			}
 
-				let selfv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count) }
-				start = start + count
-				count = 5
-				let nextv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
-				let newresults = {}
-				newresults.results = results
-				newresults.links = [ selfv , nextv ]
+			let selfv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count) }
+			start = start + count
+			count = 5
+			let nextv = { rel : "self" , href : encodeURI("http://" + req.get('host') + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
+			let newresults = {}
+			newresults.results = results
+			newresults.totalCount = mainresults.length
 
-                                res.json(newresults);
-                        }
+			// TODO :  Add total number of results
+			newresults.links = [ selfv , nextv ]
+
+
+                     	res.json(newresults);
                 }
                 catch(err) {
                         throw err;
@@ -154,6 +150,46 @@ function searchContent(app) {
 }
 
 
+function addContent(app) {
+  	return errorWrap(async function(req, res) {
+    		try {
+      			const obj = req.body;
+      			const results = await app.locals.finder.addContent(obj.name, obj.content);
+      			res.append('Location', _currentUrl(req) + '/' + obj.id);
+      			res.sendStatus(CREATED);
+    		}
+    		catch(err) {
+			throw err
+    		}
+  	});
+}
+
+function getCompletions(app) {
+        return errorWrap(async function(req, res) {
+                try {
+
+			if ( ! ( 'text' in req.params ) )
+			{
+				// TODO : Send error
+			} 
+			
+                        const text = req.query.text;
+			const results = await await app.locals.finder.complete(text)
+
+                       	res.json(results);
+                }
+                catch(err) {
+                        throw err;
+                        doErrors(app)
+                }
+        });
+}
+
+
+function _currentUrl(req) {
+  const port = req.app.locals.port;
+  return `${req.protocol}://${req.hostname}:${port}${req.originalUrl}`;
+}
 
 /** Return error handler which ensures a server error results in nice
  *  JSON sent back to client with details logged on console.
