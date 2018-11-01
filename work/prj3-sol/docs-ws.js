@@ -60,7 +60,16 @@ function setupRoutes(app) {
 
 function getContent(app) {
         return errorWrap(async function(req, res) {
-                try {
+		try {	
+			if ( ! ( 'name' in req.params ) ) {
+                                throw {
+                                        isDomain: true,
+                                        errorCode: 'BAD_PARAM',
+                                        message: `Missing name parameter \"name\"`,
+                                };
+                        }
+
+
                         const name = req.params.name;
                         const results = await app.locals.finder.docContent(name);
 
@@ -72,6 +81,7 @@ function getContent(app) {
                                 };
                         }
                         else {
+				res.statusCode = OK
                                 res.json(results);
                         }
                 }
@@ -131,10 +141,11 @@ function searchContent(app) {
 			results = results.slice(start, start + count)
 				
 			for ( let eachobj in  results ) {
-				results[eachobj].href =  encodeURI(_currentUrl(req) + "/docs/" + results[eachobj].name)
+				// TODO : Change URL
+				results[eachobj].href =  encodeURI(_currentUrl(req) + results[eachobj].name)
 			}
 
-			let selfv = { rel : "self", href : encodeURI(_currentUrl(req) + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + orignalcount) }
+			let selfv = { rel : "self", href : encodeURI(_currentUrl(req) + "&start=" + start + "&count=" + orignalcount) }
 
 			let reltext = ""; 
 			if ( start + count >= mainresults.length ) {
@@ -160,7 +171,7 @@ function searchContent(app) {
 				start = 0
 			}
 
-			let nextv = { rel : reltext , href : encodeURI(_currentUrl(req) + "/docs/" + "?q=" + searchstring + "&start=" + start + "&count=" + count ) }
+			let nextv = { rel : reltext , href : encodeURI(_currentUrl(req) + "&start=" + start + "&count=" + count ) }
 			let newresults = {}
 			newresults.results = results
 			newresults.totalCount = mainresults.length
@@ -172,7 +183,7 @@ function searchContent(app) {
 				newresults.links = [ selfv ]
 			}
 
-
+			res.statusCode = OK
                      	res.json(newresults);
                 }
                 catch(err) {
@@ -187,9 +198,29 @@ function addContent(app) {
   	return errorWrap(async function(req, res) {
     		try {
       			const obj = req.body;
+			if ( ! ( 'name' in obj ) ) {
+				throw {
+                            		isDomain: true,
+                                    	errorCode: 'BAD_PARAM',
+                                	message: `Missing query parameter \"name\"`,
+                               	};
+			}
+
+			if ( ! ( 'content' in obj ) ) {
+                                throw {
+                                        isDomain: true,
+                                        errorCode: 'BAD_PARAM',
+                                        message: `Missing query parameter \"content\"`,
+                                };
+                        }
+
       			const results = await app.locals.finder.addContent(obj.name, obj.content);
-      			res.append('Location', _currentUrl(req) + '/' + obj.id);
-      			res.sendStatus(CREATED);
+      			//res.append('Location', _currentUrl(req) + '/' );
+			const link = { href : _currentUrl(req) }
+			
+
+			res.statusCode = CREATED
+			res.json(link)
     		}
     		catch(err) {
 			throw err
@@ -204,12 +235,17 @@ function getCompletions(app) {
 
 			if ( ! ( 'text' in req.params ) )
 			{
-				// TODO : Send error
+				throw {
+                                        isDomain: true,
+                                        errorCode: 'BAD_PARAM',
+                                        message: `Missing query parameter \"text\"`,
+                                };
 			} 
 			
                         const text = req.query.text;
-			const results = await await app.locals.finder.complete(text)
-
+			const results = await app.locals.finder.complete(text)
+	
+			res.statusCode = OK
                        	res.json(results);
                 }
                 catch(err) {
