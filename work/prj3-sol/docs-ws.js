@@ -38,11 +38,10 @@ function serve(port, docFinder) {
 
 module.exports = { serve };
 
+
 function setupRoutes(app) {
   	app.use(cors());            //for security workaround in future projects
   	app.use(bodyParser.json()); //all incoming bodies are JSON
-
-  	//@TODO: add routes for required 4 services
 
   	app.get(`${DOCS}/:name`, getContent(app));
 	app.get(`${DOCS}/`,searchContent(app))
@@ -61,17 +60,11 @@ function setupRoutes(app) {
 function getContent(app) {
         return errorWrap(async function(req, res) {
 		try {	
-			if ( ! ( 'name' in req.params ) ) {
-                                throw {
-                                        isDomain: true,
-                                        errorCode: 'BAD_PARAM',
-                                        message: `Missing name parameter \"name\"`,
-                                };
-                        }
-
 
                         const name = req.params.name;
-                        const results = await app.locals.finder.docContent(name);
+                        const output = await app.locals.finder.docContent(name);
+			
+			const results = { content : output , links : [ { rel : "self", href : _currentUrl(req,true) } ] }
 
                         if (results.length === 0) {
                                 throw {
@@ -86,8 +79,8 @@ function getContent(app) {
                         }
                 }
                 catch(err) {
-   			throw err;
-	       		doErrors(app)
+			let reterror = _maperrors(err)
+			res.status(reterror.httpCode).json({ code : reterror.jsonCode , message : reterror.jsonMSG});
                 }
         });
 }
@@ -105,7 +98,7 @@ function searchContent(app) {
 			let results = mainresults;
 			if ( 'start' in req.query ) {
 
-				if ( Number(req.query.start) != NaN && req.query.start > 0 && req.query.start < results.length ) {
+				if ( Number(req.query.start) != NaN && req.query.start >= 0 ) {
 					start = Number(req.query.start)
 				}
 				else {
@@ -141,54 +134,67 @@ function searchContent(app) {
 			results = results.slice(start, start + count)
 				
 			for ( let eachobj in  results ) {
-				// TODO : Change URL
-				results[eachobj].href =  encodeURI(_currentUrl(req) + results[eachobj].name)
+				results[eachobj].href =  encodeURI(_currentUrl(req,false) + "/docs/" + results[eachobj].name)
 			}
 
-			let selfv = { rel : "self", href : encodeURI(_currentUrl(req) + "&start=" + start + "&count=" + orignalcount) }
+			let selfv = { rel : "self", href : encodeURI(_currentUrl(req,false) + "/docs?q=" + searchstring + "&start=" + start + "&count=" + orignalcount) }
+			let prevv = null
+			let nextv = null
 
-			let reltext = ""; 
-			if ( start + count >= mainresults.length ) {
-				// previous
-				reltext = "previous"
-				count = 5
+			if ( start > 0 )
+			{
+				// previous 
+				let start_temp = start
 
-				if ( start >= mainresults.length ) {
-					start = mainresults.length - 5
+				if ( (start_temp - orignalcount) < 0 )
+				{
+					start_temp = 0
 				}
-				else {
-					start = start - 5
-				}	
+				else
+				{
+					start_temp = Math.abs(start_temp - orignalcount)
+				}
+
+
+				prevv = { rel : "previous", href : encodeURI(_currentUrl(req,false) + "/docs?q=" + searchstring + "&start=" + start_temp + "&count=" + orignalcount) }
 			}
-			else {
-				// next
-				reltext = "next"
-				start = start + count
-				count = 5
+
+
+			// next
+			if ( ( start + orignalcount ) < mainresults.length )
+			{
+				// previous
+                                let start_temp = start
+				start_temp = start + orignalcount
+
+                                nextv = { rel : "next", href : encodeURI(_currentUrl(req,false) + "/docs?q=" + searchstring + "&start=" + start_temp + "&count=" + orignalcount) }
+		
 			}
+
 
 			if ( start < 0 ) {
 				start = 0
 			}
 
-			let nextv = { rel : reltext , href : encodeURI(_currentUrl(req) + "&start=" + start + "&count=" + count ) }
 			let newresults = {}
 			newresults.results = results
 			newresults.totalCount = mainresults.length
+			newresults.links = [selfv]
 
-			if ( mainresults.length > 0 ) {
-				newresults.links = [ selfv , nextv ]
+			if ( nextv != null ) {			
+				newresults.links.push(nextv)
 			}
-			else {
-				newresults.links = [ selfv ]
+			
+			if ( prevv != null ) {
+				newresults.links.push(prevv)
 			}
 
 			res.statusCode = OK
                      	res.json(newresults);
                 }
                 catch(err) {
-                        throw err;
-                        doErrors(app)
+			let reterror = _maperrors(err)
+                        res.status(reterror.httpCode).json({ code : reterror.jsonCode , message : reterror.jsonMSG});
                 }
         });
 }
@@ -223,8 +229,8 @@ function addContent(app) {
 			res.json(link)
     		}
     		catch(err) {
-			throw err
-			doErrors(app)
+			let reterror = _maperrors(err)
+                        res.status(reterror.httpCode).json({ code : reterror.jsonCode , message : reterror.jsonMSG});
     		}
   	});
 }
@@ -249,17 +255,62 @@ function getCompletions(app) {
                        	res.json(results);
                 }
                 catch(err) {
-                        throw err;
-                        doErrors(app)
+			let reterror = _maperrors(err)
+                        res.status(reterror.httpCode).json({ code : reterror.jsonCode , message : reterror.jsonMSG});
                 }
         });
 }
 
 
-function _currentUrl(req) {
-  const port = req.app.locals.port;
-  return `${req.protocol}://${req.hostname}:${port}${req.originalUrl}`;
+function _currentUrl(req,fullurlstatus) {
+	const port = req.app.locals.port;
+	if ( fullurlstatus == true ) {
+  		return `${req.protocol}://${req.hostname}:${port}${req.originalUrl}`;
+	}
+	else {
+		return `${req.protocol}://${req.hostname}:${port}`;
+	}
 }
+	
+var ERROR_STATUS_MAP = {
+        OK : OK,
+        NOT_FOUND : NOT_FOUND,
+        BAD_PARAM : BAD_REQUEST,
+        CREATED : CREATED,
+        CONFLICT : CONFLICT
+};
+
+function _maperrors(err) {
+	let obj = {}
+
+	if ( 'isDomain' in err ) {
+	       	if ( err.code in ERROR_STATUS_MAP ) {
+       			obj.httpCode = ERROR_STATUS_MAP[err.code]
+        	 	obj.jsonCode = err.code
+        	  	obj.jsonMSG = err.message
+     		}
+  		else {
+       			obj.httpCode = SERVER_ERROR
+        	     	obj.jsonCode = err.code
+        	   	obj.jsonMSG = err.message
+    		}
+	}
+	else {
+		if ( err.code == 'NOT_FOUND' ) {
+			obj.httpCode = ERROR_STATUS_MAP[err.code]
+                        obj.jsonCode = err.code
+                        obj.jsonMSG = err.message
+		}
+		else {
+			obj.httpCode = SERVER_ERROR
+             		obj.jsonCode = err.code
+           		obj.jsonMSG = err.message
+		}
+	}
+
+	return obj;
+}
+
 
 /** Return error handler which ensures a server error results in nice
  *  JSON sent back to client with details logged on console.
