@@ -87,7 +87,17 @@ function getContent(app) {
 
 function searchContent(app) {
         return errorWrap(async function(req, res) {
-                try {	
+                try {
+
+			if ( ! ( 'q' in req.query ) ) {
+                                throw {
+                                        isDomain: true,
+                                        errorCode: 'BAD_PARAM',
+                                        message: `Missing query parameter \"q\"`,
+                                };
+                        }
+
+	
 			let start = 0;
 			let count = 5;
 			
@@ -112,7 +122,7 @@ function searchContent(app) {
 				
 				if ( 'count' in req.query ) {
 
-					if ( Number(req.query.count) != NaN && req.query.count > 0 ) {
+					if ( Number(req.query.count) != NaN && req.query.count >= 0 ) {
 						count = Number(req.query.count)
 						orignalcount = count
 					}
@@ -208,7 +218,7 @@ function addContent(app) {
 				throw {
                             		isDomain: true,
                                     	errorCode: 'BAD_PARAM',
-                                	message: `Missing query parameter \"name\"`,
+                                	message: `Required body parameter \"name\" missing`,
                                	};
 			}
 
@@ -216,13 +226,12 @@ function addContent(app) {
                                 throw {
                                         isDomain: true,
                                         errorCode: 'BAD_PARAM',
-                                        message: `Missing query parameter \"content\"`,
+                                        message: `Required body parameter \"content\" missing`,
                                 };
                         }
 
       			const results = await app.locals.finder.addContent(obj.name, obj.content);
-      			//res.append('Location', _currentUrl(req) + '/' );
-			const link = { href : _currentUrl(req) }
+			const link = { href : encodeURI(_currentUrl(req,false) + "/docs/" + obj.name) }
 			
 
 			res.statusCode = CREATED
@@ -239,7 +248,7 @@ function getCompletions(app) {
         return errorWrap(async function(req, res) {
                 try {
 
-			if ( ! ( 'text' in req.params ) )
+			if ( ! ( 'text' in req.query ) )
 			{
 				throw {
                                         isDomain: true,
@@ -282,6 +291,10 @@ var ERROR_STATUS_MAP = {
 
 function _maperrors(err) {
 	let obj = {}
+
+	if ( err.code == undefined ) {
+		err.code = err.errorCode
+	}
 
 	if ( 'isDomain' in err ) {
 	       	if ( err.code in ERROR_STATUS_MAP ) {
