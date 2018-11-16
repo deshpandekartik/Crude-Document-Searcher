@@ -1,7 +1,9 @@
 'use strict';
 
 const express = require('express');
+const multer = require('multer');
 const upload = require('multer')();
+
 const fs = require('fs');
 const mustache = require('mustache');
 const Path = require('path');
@@ -30,12 +32,61 @@ module.exports = serve;
 /******************************** Routes *******************************/
 
 function setupRoutes(app) {
-  //@TODO add appropriate routes
+	const base = app.locals.base;
+  	//@TODO add appropriate routes
+
+	app.get(`${base}/add.html`, addDocument(app));
+	app.post(`${base}/add.html`, upload.single('file'), addDocument(app));
+	app.get(`${base}/:id`, showDocument(app));
 }
 
 /*************************** Action Routines ***************************/
 
 //@TODO add action routines for routes + any auxiliary functions.
+
+function addDocument(app) {
+  upload.single('file')
+  return async function(req, res) {
+
+	if ( req.method == "GET" ) {
+		let model =  {
+			base : app.locals.base
+  		}
+		const html = doMustache(app, 'add', model);
+    		res.send(html);
+	}
+	else if ( req.method == "POST" ) {
+
+		if ( req.file == undefined ) {
+				let errormodel =  {
+                	        errorMessage: 'please select a file containing a document to upload',
+                	        base : app.locals.base
+                	}
+                const html = doMustache(app, 'add', errormodel);
+                res.send(html);	
+
+		}
+		else {
+		        let filename = String(req.file.originalname)
+		        let filecontent = String(req.file.buffer)
+		
+			console.log(filename)
+			console.log(filecontent)
+			res.redirect(app.locals.base + '/' + filename);
+		}
+	}
+  };
+};
+
+
+function showDocument(app) {
+  	return async function(req, res) {
+
+  		res.sendStatus(200);
+  	};
+};
+
+
 
 /************************ General Utilities ****************************/
 
