@@ -170,7 +170,6 @@ function searchDoc(app) {
                                         res.send(html)
 			
 				}
-				console.log(result)
 			}
 		}
 		else {
@@ -233,22 +232,30 @@ function normalizeword( word ) {
         }
 
 	// remove non alphanumeric characters
-       	//word = word.replace(/\W/g, '')
 
 	let wordarr = word.split('')
-	for ( let i = 0; i < wordarr.length; i++ ) {
-		if ( ! ( String(wordarr[i]).match(/[a-z]/i) )) {
-			wordarr[i] = ''
-		}
-		else { 
+
+	for ( let i = 0; i < word.length; i++ ) {
+    		let code = word.charCodeAt(i);
+	    	if (!(code > 47 && code < 58) && // numeric (0-9)
+        		!(code > 64 && code < 91) && // upper alpha (A-Z)
+        			!(code > 96 && code < 123)) // lower alpha (a-z)
+		{
+     			wordarr[i] = ''
+    		}
+		else {
 			break;
 		}
 	}
 
 
-	for ( let i = wordarr.length; i > 0; i++ ) {
-                if ( ! ( String(wordarr[i]).match(/[a-z]/i) )) {
-                        wordarr[i] = ''
+	for ( let i = word.length; i > 0; i-- ) {
+                let code = word.charCodeAt(i);
+                if (!(code > 47 && code < 58) && // numeric (0-9)
+                        !(code > 64 && code < 91) && // upper alpha (A-Z)
+                                !(code > 96 && code < 123)) // lower alpha (a-z)
+                {
+                        wordarr[i] = ''  
                 }
                 else {
                         break;
