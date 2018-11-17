@@ -37,12 +37,14 @@ function setupRoutes(app) {
 
 	app.get(`${base}/add.html`, addDocument(app));
 	app.post(`${base}/add.html`, upload.single('file'), addDocument(app));
-	app.get(`${base}/:id`, showDocument(app));
+
+	app.get(`${base}/search.html`, searchDoc(app));	
+
+	// display document
+	app.get(`${base}/:id`, showDocument(app));	// must be last
 }
 
 /*************************** Action Routines ***************************/
-
-//@TODO add action routines for routes + any auxiliary functions.
 
 function addDocument(app) {
   upload.single('file')
@@ -67,22 +69,142 @@ function addDocument(app) {
 
 		}
 		else {
-		        let filename = String(req.file.originalname)
-		        let filecontent = String(req.file.buffer)
+		        let name = req.file.originalname.toString("utf8")
+		        let content = req.file.buffer.toString("utf8")
 		
-			console.log(filename)
-			console.log(filecontent)
-			res.redirect(app.locals.base + '/' + filename);
+			name = Path.basename(name, '.txt');
+
+			const json = { name, content };
+
+			// ask helper to upload the file
+			let ret = await app.locals.model.addDoc(json)
+
+			res.redirect(app.locals.base + '/' + name);
 		}
 	}
   };
 };
 
+function searchDoc(app) {
+        return async function(req, res) {
+		
+		if (  'q' in req.query  ) {
+	
+			const searchstring = req.query.q
+
+			if ( searchstring.trim() == "" ) {
+				// raise error message , empty search string was passed
+
+				let model =  {
+	        	                base : app.locals.base,
+					errorNoSearch : 'please specify one-or-more search terms'
+        	                }
+	
+				const html = doMustache(app, 'search', model);
+	                        res.send(html)
+			}
+			else {
+
+				let start = 0
+				let count = 5
+
+				if ( 'start' in req.query ) {
+		
+					start = req.query.start
+	
+					if ( 'count' in req.query ) {
+						count = req.query.count	
+					}
+				}
+	
+				
+				let qstring = "?q=day+light"
+
+				let result = await app.locals.model.searchDoc(qstring)
+
+				if ( result.totalCount == 0 ) {
+					// raise error message , no search results found
+
+	                                let model =  {
+        	                                base : app.locals.base,
+        	                                errorNoDoc : 'no document containing &quot;asd&quot; found; please retry'
+        	                        }
+
+        	                        const html = doMustache(app, 'search', model);
+        	                        res.send(html)				
+				}
+				else {
+					result.base = app.locals.base
+					result.resultsstatus = true
+					for ( let res of result.results ) {
+						let lines = res.lines
+					}
+
+					
+					for ( let res of result.links ) {
+                                                if ( res.rel == "next" ) {
+							// TODO : Change from hard coded code 
+							result.next = res.href.replace('http://zdu.binghamton.edu:1235/docs','')
+							result.next = 'search.html' + result.next
+						}
+
+						if ( res.rel == "prev" ) {
+							// TODO : Change from hard coded code
+							result.prev = res.href.replace('http://zdu.binghamton.edu:1235/docs','')
+							result.prev = 'search.html' + result.prev
+						}
+                                        }
+
+					const html = doMustache(app, 'search', result);
+                                        res.send(html)
+			
+				}
+				
+				console.log(result)
+			}
+		}
+		else {
+
+			// just the search page was accesed;
+
+			let model =  {
+	                        base : app.locals.base
+	                }
+        	        const html = doMustache(app, 'search', model);
+        	        res.send(html);
+
+		}	
+
+	};
+}
 
 function showDocument(app) {
   	return async function(req, res) {
 
-  		res.sendStatus(200);
+		const id = req.params.id;
+		console.log(id)
+		if ( id != undefined ) {
+
+			try {	
+				let retdata = await app.locals.model.getDoc(id)
+
+				let model =  {
+					docname: id,
+					doccontent: retdata.content,
+                                        base : app.locals.base
+                                }
+				const html = doMustache(app, 'doccontent', model);
+                		res.send(html);
+			}
+			catch (err) {
+				let errormodel =  {
+                	                errorMessage: 'doc ' + id + ' not found',
+        	                        base : app.locals.base
+	                        }
+				const html = doMustache(app, 'doccontent', errormodel);
+		                res.send(html);
+			}
+		}
   	};
 };
 
