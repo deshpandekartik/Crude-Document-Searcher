@@ -24,10 +24,13 @@
         			<span class="label">Search Terms:</span>
         	  			<input id="query" name="q" value="{{searchterms}}">
 			</label>
-				<br/>
+			<br>
+			{{#errorNoSearch}}
+			<label>
 				<span class="error"> {{errorNoSearch}} </span><br/>
  		     	</label>
-     	
+     			{{/errorNoSearch}}
+
  			<input id="submit" name="submit" type="submit" value="search" class="control">
     		</form>
 

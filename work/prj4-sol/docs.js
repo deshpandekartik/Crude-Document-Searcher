@@ -92,6 +92,12 @@ function searchDoc(app) {
 	
 			const searchstring = req.query.q
 
+			let searchmap = new Map()
+	
+			for ( let searchword of searchstring.split(' ') ) {
+	                        searchmap.set(normalizeword(searchword) , true)
+	                }
+
 			if ( searchstring.trim() == "" ) {
 				// raise error message , empty search string was passed
 
@@ -105,21 +111,17 @@ function searchDoc(app) {
 			}
 			else {
 
-				let start = 0
-				let count = 5
+				let qstring = "?q=" + searchstring
 
 				if ( 'start' in req.query ) {
 		
-					start = req.query.start
-	
+					qstring = qstring + "&start=" + req.query.start
+						
 					if ( 'count' in req.query ) {
-						count = req.query.count	
+						qstring = qstring + "&count=" + req.query.count
 					}
 				}
 	
-				
-				let qstring = "?q=day+light"
-
 				let result = await app.locals.model.searchDoc(qstring)
 
 				if ( result.totalCount == 0 ) {
@@ -127,7 +129,8 @@ function searchDoc(app) {
 
 	                                let model =  {
         	                                base : app.locals.base,
-        	                                errorNoDoc : 'no document containing &quot;asd&quot; found; please retry'
+        	                                errorNoDoc : 'no document containing &quot;asd&quot; found; please retry',
+						searchterms : searchstring
         	                        }
 
         	                        const html = doMustache(app, 'search', model);
@@ -136,11 +139,19 @@ function searchDoc(app) {
 				else {
 					result.base = app.locals.base
 					result.resultsstatus = true
+					result.searchterms = searchstring
+
 					for ( let res of result.results ) {
-						let lines = res.lines
+						for ( let word of res.lines[0].split(' ') ) {
+							let normword = normalizeword(word)
+
+							if ( searchmap.has(normword) ) {
+								let replace = '<span class="search-term">' + word + '</span>'
+								res.lines[0] = res.lines[0].replace(word, replace)
+							}
+						}
 					}
 
-					
 					for ( let res of result.links ) {
                                                 if ( res.rel == "next" ) {
 							// TODO : Change from hard coded code 
@@ -148,7 +159,7 @@ function searchDoc(app) {
 							result.next = 'search.html' + result.next
 						}
 
-						if ( res.rel == "prev" ) {
+						if ( res.rel == "previous" ) {
 							// TODO : Change from hard coded code
 							result.prev = res.href.replace('http://zdu.binghamton.edu:1235/docs','')
 							result.prev = 'search.html' + result.prev
@@ -159,7 +170,6 @@ function searchDoc(app) {
                                         res.send(html)
 			
 				}
-				
 				console.log(result)
 			}
 		}
@@ -182,7 +192,6 @@ function showDocument(app) {
   	return async function(req, res) {
 
 		const id = req.params.id;
-		console.log(id)
 		if ( id != undefined ) {
 
 			try {	
@@ -211,6 +220,44 @@ function showDocument(app) {
 
 
 /************************ General Utilities ****************************/
+
+function normalizeword( word ) {
+
+        // convert word to lower case
+        word = word.toLowerCase()
+
+        // delete any 's suffix.
+        if ( word.endsWith("\'s") )
+        {
+                word = word.substring(0, word.length - 2);
+        }
+
+	// remove non alphanumeric characters
+       	//word = word.replace(/\W/g, '')
+
+	let wordarr = word.split('')
+	for ( let i = 0; i < wordarr.length; i++ ) {
+		if ( ! ( String(wordarr[i]).match(/[a-z]/i) )) {
+			wordarr[i] = ''
+		}
+		else { 
+			break;
+		}
+	}
+
+
+	for ( let i = wordarr.length; i > 0; i++ ) {
+                if ( ! ( String(wordarr[i]).match(/[a-z]/i) )) {
+                        wordarr[i] = ''
+                }
+                else {
+                        break;
+                }
+        }
+
+        return wordarr.join("");
+}
+
 
 /** return object containing all non-empty values from object values */
 function getNonEmptyValues(values) {
