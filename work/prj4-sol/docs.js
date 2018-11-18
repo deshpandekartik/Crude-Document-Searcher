@@ -312,6 +312,7 @@ function relativeUrl(req, path='', queryParams={}, hash='') {
  */
 function doMustache(app, templateId, view) {
   const templates = { footer: app.templates.footer };
+	console.log(mustache.render(app.templates[templateId], view, templates))
   return mustache.render(app.templates[templateId], view, templates);
 }
 
