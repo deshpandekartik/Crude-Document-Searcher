@@ -58,3 +58,8 @@
 	{{#next}}
 		      <a id="next" href="{{next}}">Next</a>
 	{{/next}}
+	
+{{>footer}}
+</body>
+</html>
+

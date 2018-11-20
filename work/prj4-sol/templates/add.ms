@@ -23,4 +23,7 @@
 
       			<input id="submit" name="submit" type="submit" value="add" class="control">
     		</form>
+{{>footer}}
+</body>
+</html>
 

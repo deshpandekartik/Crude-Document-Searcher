@@ -16,3 +16,7 @@
     		<pre class="content">
 			{{doccontent}} 	
 		</pre>
+{{>footer}}
+</body>
+</html>
+

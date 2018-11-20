@@ -35,6 +35,8 @@ function setupRoutes(app) {
 	const base = app.locals.base;
   	//@TODO add appropriate routes
 
+	app.get(`/`, redirectRoot(app));
+
 	app.get(`${base}/add.html`, addDocument(app));
 	app.post(`${base}/add.html`, upload.single('file'), addDocument(app));
 
@@ -45,6 +47,14 @@ function setupRoutes(app) {
 }
 
 /*************************** Action Routines ***************************/
+
+function redirectRoot(app)
+{
+	return async function(req, res) {
+		res.redirect(`${app.locals.base}`);
+	};
+};
+	
 
 function addDocument(app) {
   upload.single('file')
@@ -129,7 +139,7 @@ function searchDoc(app) {
 
 	                                let model =  {
         	                                base : app.locals.base,
-        	                                errorNoDoc : 'no document containing &quot;asd&quot; found; please retry',
+        	                                errorNoDoc : 'no document containing \'' + searchstring + '\' found; please retry',
 						searchterms : searchstring
         	                        }
 
@@ -142,26 +152,27 @@ function searchDoc(app) {
 					result.searchterms = searchstring
 
 					for ( let res of result.results ) {
-						for ( let word of res.lines[0].split(' ') ) {
-							let normword = normalizeword(word)
-
-							if ( searchmap.has(normword) ) {
-								let replace = '<span class="search-term">' + word + '</span>'
-								res.lines[0] = res.lines[0].replace(word, replace)
+						for ( let i = 0; i < res.lines.length; i++ ) {
+							for ( let word of res.lines[i].split(' ') ) {
+								let normword = normalizeword(word)
+	
+								if ( searchmap.has(normword) ) {
+									let replace = '<span class="search-term">' + word + '</span>'
+									res.lines[i] = res.lines[i].replace(word, replace)
+								}
 							}
 						}
 					}
 
+					const helperURL = await app.locals.model.returnURL()
 					for ( let res of result.links ) {
                                                 if ( res.rel == "next" ) {
-							// TODO : Change from hard coded code 
-							result.next = res.href.replace('http://zdu.binghamton.edu:1235/docs','')
+							result.next = res.href.replace( helperURL,'')
 							result.next = 'search.html' + result.next
 						}
 
 						if ( res.rel == "previous" ) {
-							// TODO : Change from hard coded code
-							result.prev = res.href.replace('http://zdu.binghamton.edu:1235/docs','')
+							result.prev = res.href.replace( helperURL,'')
 							result.prev = 'search.html' + result.prev
 						}
                                         }
@@ -312,7 +323,6 @@ function relativeUrl(req, path='', queryParams={}, hash='') {
  */
 function doMustache(app, templateId, view) {
   const templates = { footer: app.templates.footer };
-	console.log(mustache.render(app.templates[templateId], view, templates))
   return mustache.render(app.templates[templateId], view, templates);
 }
 

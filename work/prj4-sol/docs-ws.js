@@ -37,8 +37,17 @@ DocsWs.prototype.getDoc = async function(id) {
 DocsWs.prototype.searchDoc = async function( searchtermurl ) {
   try {
     const response = await axios.get(`${this.docsUrl}/${searchtermurl}`);
-console.log(`${this.docsUrl}/${searchtermurl}`)
     return response.data;
+  }
+  catch (err) {
+    console.error(err);
+    throw (err.response && err.response.data) ? err.response.data : err;
+  }
+};
+
+DocsWs.prototype.returnURL = async function( ) {
+  try {
+    return this.docsUrl;
   }
   catch (err) {
     console.error(err);
