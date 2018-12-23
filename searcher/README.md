@@ -1,3 +1,5 @@
+
+```
 > ./index.js mongodb://localhost:27017/docs clear
 time 4 millisecond
 > ./index.js mongodb://localhost:27017/docs add-noise $DATA/noise-words.txt
@@ -83,3 +85,4 @@ girlhood
 girls
 girtons
 
+```

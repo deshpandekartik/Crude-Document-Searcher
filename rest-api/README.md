@@ -1,3 +1,5 @@
+
+```
 #setup sh vars
 $ DATA=$HOME/cs580w/data
 $ SNARK=$DATA/corpus/snark
@@ -243,3 +245,5 @@ $
 [1]+  Done                    ./index.js mongodb://localhost:27017/docs 1235 $DATA/noise-words.txt $SNARK/_*.txt
 
 $
+
+```
